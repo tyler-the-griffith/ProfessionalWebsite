@@ -18,7 +18,7 @@
                     <span class="nav-logo-text">Tyler Griffith - Aerospace Engineer</span>
                 </a>
             </div>
-            <ul class="nav-menu">
+            <ul class="nav-menu" id="site-menu">
                 <li class="nav-item">
                     <a href="./blog/index.html" target="_blank" class="nav-link">Blog</a>
                 </li>
@@ -27,6 +27,9 @@
                 </li>
                 <li class="nav-item">
                     <a href="./JungaWorkspace/" target="_blank" class="nav-link">Junga Workspace</a>
+                </li>
+                <li class="nav-item">
+                    <a href="./stemroom/" class="nav-link">Stemroom</a>
                 </li>
                 <li class="nav-item">
                     <a href="#experience" class="nav-link">Projects</a>
@@ -41,11 +44,11 @@
                     <a href="#contact" class="nav-link">Contact</a>
                 </li>
             </ul>
-            <div class="hamburger">
+            <button class="hamburger" type="button" aria-label="Toggle navigation" aria-controls="site-menu" aria-expanded="false">
                 <span class="bar"></span>
                 <span class="bar"></span>
                 <span class="bar"></span>
-            </div>
+            </button>
         </div>
     </nav>
 
@@ -255,12 +258,14 @@
         hamburger.addEventListener("click", () => {
             hamburger.classList.toggle("active");
             navMenu.classList.toggle("active");
+            hamburger.setAttribute("aria-expanded", String(navMenu.classList.contains("active")));
         });
 
         // Close mobile menu when clicking on a link
         document.querySelectorAll(".nav-link").forEach(n => n.addEventListener("click", () => {
             hamburger.classList.remove("active");
             navMenu.classList.remove("active");
+            hamburger.setAttribute("aria-expanded", "false");
         }));
 
         // Developer mode: only ever loaded on demand, never for visitors.
@@ -285,4 +290,4 @@
         });
     </script>
 </body>
-</html> 
+</html>

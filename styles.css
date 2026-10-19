@@ -136,6 +136,9 @@ iframe {
 }
 
 .hamburger {
+    border: 0;
+    background: transparent;
+    padding: 10px;
     display: none;
     flex-direction: column;
     cursor: pointer;
@@ -615,6 +618,28 @@ section {
 }
 
 /* Responsive Design */
+/* Keep the expanded project navigation reachable before desktop links crowd. */
+@media (max-width: 1150px) {
+    .hamburger { display: flex; }
+    .nav-menu {
+        position: fixed;
+        left: -100%;
+        top: 70px;
+        flex-direction: column;
+        background-color: #d9d9d9;
+        width: 100%;
+        text-align: center;
+        transition: 0.3s;
+        box-shadow: 0 10px 27px rgba(39, 78, 19, 0.05);
+        padding: 1.25rem 0;
+        max-height: calc(100dvh - 70px);
+        overflow-y: auto;
+    }
+    .nav-menu.active { left: 0; }
+    .hamburger.active .bar:nth-child(2) { opacity: 0; }
+    .hamburger.active .bar:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+    .hamburger.active .bar:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+}
 @media (max-width: 768px) {
     .hamburger {
         display: flex;

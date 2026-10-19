@@ -1,0 +1,125 @@
+/* Site-wide palette tokens. Artwork and instrument identification retain their own colors. */
+:root {
+  --bg: #0E1C20;
+  --surface: #15292E;
+  --surface-2: #1D363C;
+  --surface-3: #25434A;
+  --line: #2B4A52;
+  --teal: #335C67;
+  --teal-light: #7FAFBA;
+  --cream: #FFF3B0;
+  --text: #FFF3B0;
+  --text-2: #D8D6B4;
+  --muted: #A9B5A2;
+  --dim: #849891;
+  --amber: #E09F3E;
+  --amber-soft: #3A3220;
+  --red: #9E2A2B;
+  --red-light: #D4605A;
+  --maroon: #540B0E;
+  --on-amber: #540B0E;
+  --action: var(--amber);
+  --on-action: var(--on-amber);
+  --action-hover: color-mix(in srgb, var(--action), var(--cream) 22%);
+  --danger-text: #F1A49E;
+  --danger-soft: #3A1C1D;
+  --cta-ink: var(--on-action);
+  --cta-button: var(--maroon);
+
+  --singer-0: #E09F3E;
+  --singer-1: #7FAFBA;
+  --singer-2: #D4605A;
+  --singer-all: #FFF3B0;
+
+  --display: 'Bricolage Grotesque', 'Avenir Next', system-ui, sans-serif;
+  --body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  --r-sm: 10px;
+  --r: 14px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+  color-scheme: dark;
+}
+
+:root[data-theme="olive"] {
+  --bg: #18210F;
+  --surface: #283618;
+  --surface-2: #344323;
+  --surface-3: #425330;
+  --line: #52633C;
+  --teal: #606C38;
+  --teal-light: #B7C78B;
+  --cream: #FEFAE0;
+  --text: #FEFAE0;
+  --text-2: #E2DDC1;
+  --muted: #BDC4A3;
+  --dim: #A2B18D;
+  --amber: #DDA15E;
+  --amber-soft: #3C3421;
+  --red: #813F18;
+  --red-light: #E49B65;
+  --maroon: #283618;
+  --on-amber: #283618;
+  --danger-soft: #432D21;
+  --singer-0: #DDA15E;
+  --singer-1: #B7C78B;
+  --singer-2: #E49B65;
+  --singer-all: #FEFAE0;
+}
+
+:root[data-theme="autumn"] {
+  --bg: #261A13;
+  --surface: #342217;
+  --surface-2: #432818;
+  --surface-3: #53331F;
+  --line: #785438;
+  --teal: #99582A;
+  --teal-light: #E0B47C;
+  --cream: #FFE6A7;
+  --text: #FFE6A7;
+  --text-2: #E8D3B2;
+  --muted: #D0B89A;
+  --dim: #BFA588;
+  --amber: #BB9457;
+  --amber-soft: #3B2A1A;
+  --red: #6F1D1B;
+  --red-light: #E29783;
+  --maroon: #432818;
+  --on-amber: #261A13;
+  --danger-soft: #432321;
+  --singer-0: #D9B475;
+  --singer-1: #EDCF9C;
+  --singer-2: #E29783;
+  --singer-all: #FFE6A7;
+}
+
+:root[data-theme="ocean"] {
+  --bg: #001E2D;
+  --surface: #003049;
+  --surface-2: #0C3F57;
+  --surface-3: #194E66;
+  --line: #35667C;
+  --teal: #003049;
+  --teal-light: #85B5D3;
+  --cream: #FDF0D5;
+  --text: #FDF0D5;
+  --text-2: #D1E2E6;
+  --muted: #A6C4D2;
+  --dim: #91B5C8;
+  --amber: #85B5D3;
+  --amber-soft: #103E54;
+  --red: #780000;
+  --red-light: #F18A92;
+  --maroon: #003049;
+  --on-amber: #003049;
+  --action: #C1121F;
+  --on-action: #FDF0D5;
+  --action-hover: #DA2633;
+  --cta-button: #780000;
+  --danger-soft: #42232D;
+  --singer-0: #85B5D3;
+  --singer-1: #F1CA90;
+  --singer-2: #F18A92;
+  --singer-all: #FDF0D5;
+}
