@@ -1,0 +1,3 @@
+# Written over SSH by Stemroom's tunnel service; public runtime discovery only.
+/stemroom/backend.json
+/stemroom/.backend.json.tmp

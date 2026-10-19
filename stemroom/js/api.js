@@ -1,6 +1,6 @@
 // REST helpers plus the live room connection (WebSocket) shared by every view.
 import { useEffect, useState } from './lib.js';
-import { appUrl } from './urls.mjs';
+import { appUrl, refreshConnection } from './urls.mjs';
 
 async function request(method, path, body, isForm) {
   const opts = { method, headers: {} };
@@ -34,7 +34,8 @@ let socket = null;
 const subs = new Set();
 const notify = () => subs.forEach((f) => f());
 
-function connect() {
+async function connect() {
+  await refreshConnection();
   const url = new URL(appUrl('/ws'));
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.searchParams.set('clientId', clientId);
