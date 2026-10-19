@@ -1,1 +1,1 @@
-window.StemroomConnection = Object.freeze({"backendUrl": "https://lot-shore-precious-denied.trycloudflare.com", "runtimeConfig": "backend.json"});
+window.StemroomConnection = Object.freeze({"backendUrl": "https://berkeley-minimal-forum-added.trycloudflare.com", "runtimeConfig": "backend.json"});

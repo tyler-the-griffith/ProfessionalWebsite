@@ -526,3 +526,12 @@ body { padding-top: var(--shell-height); }
 }
 
 @media (max-width:700px) { .library > .row > .hint { flex:1 0 100%; } }
+
+/* ---------------------------------------------------------------- studio spectrogram */
+.spec-card { display: flex; flex-direction: column; gap: 14px; }
+.spec-canvas { display: block; width: 100%; border-radius: 14px; background: var(--bg); cursor: pointer; }
+.spec-empty { min-height: 160px; display: grid; place-items: center; border-radius: 14px; background: var(--bg); color: var(--muted); padding: 20px; text-align: center; }
+.spec-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.spec-legend button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text-2); font-size: 13px; font-weight: 600; cursor: pointer; }
+.spec-legend button[aria-pressed="true"] { border-color: var(--amber); color: var(--text); background: var(--amber-soft); }
+.spec-legend button.off { opacity: .5; }

@@ -7,6 +7,7 @@ import { resolveParts, partColor, partLabel, activeLine, sectionAt } from '../ly
 import { Icon, TopBar, Stepper, Switch, useClickOutside, Thumb } from '../ui.js';
 
 import { Modal } from '../library.js';
+import { SpectrogramCard } from '../spectrogram.js';
 const engine = new Engine();
 async function previewPlay() {
   bus.dispatchEvent(new CustomEvent('studio-preview'));
@@ -536,6 +537,9 @@ export function StudioView({ songId, entryId, initialMixId }) {
     </div>
     ${job && html`<div class="card tight row" style="gap: 14px"><span class="grow">${job.label}…</span><div class="bar" style="width: 200px"><div style=${{ width: `${job.progress * 100}%` }}></div></div></div>`}
 
+    ${tab === 'mixer' && html`<${SpectrogramCard} song=${song} stems=${stems} duration=${duration}
+      audible=${(s) => { const m = sm(s); return !m.mute && (!anySolo || m.solo); }}
+      selected=${selStem?.id} onSelect=${setSel} getTime=${() => engine.time()} onSeek=${(t) => engine.seek(t)} />`}
     ${tab === 'mixer' ? html`<div class="columns">
       <section class="mixer col-main" aria-label="Stem mixer" style="gap: 0">
         ${!ready && html`<div class="row" style="padding: 8px 12px 14px; gap: 12px"><span class="muted grow">Loading stems…</span><div class="bar" style="width: 200px"><div style=${{ width: `${loadPct * 100}%` }}></div></div></div>`}
