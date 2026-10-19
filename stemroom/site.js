@@ -21,7 +21,7 @@ try {
     link.href = target.href;
   }
   document.querySelector('#connection-title').textContent = 'Your full Stemroom app';
-  document.querySelector('#connection-description').textContent = note || 'The room opens on its separate host. Sign in there to continue.';
+  document.querySelector('#connection-description').textContent = note || 'The room opens on its separate host.';
 } catch {
   document.querySelector('#connection-title').textContent = 'The online room is not configured yet';
   document.querySelector('#connection-description').textContent = 'The app works locally. Online audio processing is waiting for its server. Setup instructions are on GitHub.';
