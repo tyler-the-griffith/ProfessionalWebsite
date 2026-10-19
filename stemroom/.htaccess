@@ -1,0 +1,6 @@
+DirectoryIndex index.html
+AddType text/javascript .mjs
+AddType application/wasm .wasm
+<IfModule mod_headers.c>
+  Header set Cache-Control "no-cache"
+</IfModule>
