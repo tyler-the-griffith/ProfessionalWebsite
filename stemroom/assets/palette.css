@@ -1,47 +1,5 @@
 /* Site-wide palette tokens. Artwork and instrument identification retain their own colors. */
-:root {
-  --bg: #0E1C20;
-  --surface: #15292E;
-  --surface-2: #1D363C;
-  --surface-3: #25434A;
-  --line: #2B4A52;
-  --teal: #335C67;
-  --teal-light: #7FAFBA;
-  --cream: #FFF3B0;
-  --text: #FFF3B0;
-  --text-2: #D8D6B4;
-  --muted: #A9B5A2;
-  --dim: #849891;
-  --amber: #E09F3E;
-  --amber-soft: #3A3220;
-  --red: #9E2A2B;
-  --red-light: #D4605A;
-  --maroon: #540B0E;
-  --on-amber: #540B0E;
-  --action: var(--amber);
-  --on-action: var(--on-amber);
-  --action-hover: color-mix(in srgb, var(--action), var(--cream) 22%);
-  --danger-text: #F1A49E;
-  --danger-soft: #3A1C1D;
-  --cta-ink: var(--on-action);
-  --cta-button: var(--maroon);
-
-  --singer-0: #E09F3E;
-  --singer-1: #7FAFBA;
-  --singer-2: #D4605A;
-  --singer-all: #FFF3B0;
-
-  --display: 'Bricolage Grotesque', 'Avenir Next', system-ui, sans-serif;
-  --body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
-
-  --r-sm: 10px;
-  --r: 14px;
-  --r-lg: 22px;
-  --r-xl: 28px;
-  color-scheme: dark;
-}
-
+:root,
 :root[data-theme="olive"] {
   --bg: #18210F;
   --surface: #283618;
@@ -61,12 +19,30 @@
   --red-light: #E49B65;
   --maroon: #283618;
   --on-amber: #283618;
+  --action: var(--amber);
+  --on-action: var(--on-amber);
+  --action-hover: color-mix(in srgb, var(--action), var(--cream) 22%);
+  --danger-text: #F1A49E;
   --danger-soft: #432D21;
+  --cta-ink: var(--on-action);
+  --cta-button: var(--maroon);
+
   --singer-0: #DDA15E;
   --singer-1: #B7C78B;
   --singer-2: #E49B65;
   --singer-all: #FEFAE0;
+
+  --display: 'Bricolage Grotesque', 'Avenir Next', system-ui, sans-serif;
+  --body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  --r-sm: 10px;
+  --r: 14px;
+  --r-lg: 22px;
+  --r-xl: 28px;
+  color-scheme: dark;
 }
+
 
 :root[data-theme="autumn"] {
   --bg: #261A13;

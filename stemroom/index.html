@@ -3,69 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Stemroom turns your music into your karaoke room. Separate stems, save your mixes, find your key, and sing together.">
-  <meta name="theme-color" content="#0E1C20">
-  <title>Stemroom · Make room for your voice</title>
-  <script src="assets/themes.js"></script>
+  <meta name="description" content="Open the Stemroom Queue to pick a song, browse your library, and sing together.">
+  <meta name="theme-color" content="#18210F">
+  <title>Stemroom · Queue</title>
+  <script>window.location.replace("https://lot-shore-precious-denied.trycloudflare.com/#/");</script>
+  <meta http-equiv="refresh" content="0; url=https://lot-shore-precious-denied.trycloudflare.com/#/">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/palette.css">
-  <link rel="stylesheet" href="site.css">
-  <script type="module" src="site.js"></script>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #18210F; color: #FEFAE0; }
+    body { margin: 0; padding: 2rem; }
+    main { max-width: 32rem; margin: 15vh auto; }
+    a { color: #DDA15E; }
+  </style>
 </head>
 <body>
-  <a class="skip" href="#main">Skip to content</a>
-  <header class="site-header wrap">
-    <a class="brand" href="./"><img src="assets/favicon.svg" width="34" height="34" alt="">Stemroom</a>
-    <nav aria-label="Website"><a href="https://tylergriffith.us/">← Tyler Griffith</a><a href="#room">The room</a><a href="https://github.com/tyler-the-griffith/stemroom">GitHub ↗</a></nav>
-    <label class="theme-label"><span>Theme</span><select id="theme" aria-label="Site theme"></select></label>
-  </header>
-  <main id="main">
-    <section class="hero wrap" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="tiny-bars" aria-hidden="true">▂ ▆ ▃ ▇</span> YOUR MUSIC. YOUR KARAOKE ROOM.</p>
-        <h1 id="hero-title">Make room<br>for <em>your voice.</em></h1>
-        <p class="intro">Keep the band. Find your key. Turn down the original singer and take the stage.</p>
-        <div class="actions"><a class="button primary launch" href="#room">Open Stemroom <span aria-hidden="true">↗</span></a><a class="text-link" href="#how">Take a look around <span aria-hidden="true">↓</span></a></div>
-        <p class="small hero-note">A shared library. A mix for every singer. A stage for everyone.</p>
-      </div>
-      <div class="record-panel" aria-label="Illustration of a record separated into vocal and instrumental tracks">
-        <div class="record-top"><span class="eyebrow">THE SONG IS YOURS</span><span class="mono">33⅓ RPM</span></div>
-        <div class="record"><div class="record-label"><span>STEM<br>ROOM</span><i></i><small>SIDE YOU</small></div></div>
-        <div class="mix-illustration">
-          <div><span>Lead vocals</span><i style="--level:22%;--ink:var(--amber)"></i><b>YOUR CUE</b></div>
-          <div><span>Harmonies</span><i style="--level:22%;--ink:var(--cream)"></i><b>LINKED</b></div>
-          <div><span>The band</span><i style="--level:86%;--ink:var(--teal-light)"></i><b>ALL IN</b></div>
-        </div>
-        <p class="record-caption">Every part has its place. This one is yours.</p>
-      </div>
-    </section>
-
-    <section class="room-section wrap" id="room" aria-labelledby="room-title">
-      <div class="section-heading"><div><p class="eyebrow">STEP INSIDE</p><h2 id="room-title">One room.<br>Three ways to play.</h2></div><p>Open the full app to use your library, mix a song, or put the lyrics on the big screen.</p></div>
-      <div class="room-links">
-        <a class="room-link" data-route="#/" href="#connection"><span class="step">01</span><h3>Queue</h3><p>Find your next song. Make a collection. Bring a friend.</p><span class="route-action">Open the queue ↗</span></a>
-        <a class="room-link" data-route="#/stage" href="#connection"><span class="step">02</span><h3>Stage</h3><p>Scrolling lyrics, a vocal countdown, and your moment in the spotlight.</p><span class="route-action">Take the stage ↗</span></a>
-        <a class="room-link" data-route="#/studio" href="#connection"><span class="step">03</span><h3>Studio</h3><p>Find your balance. Shape every stem. Save a mix that feels like you.</p><span class="route-action">Open the studio ↗</span></a>
-      </div>
-      <div class="connection" id="connection"><span class="connection-mark" aria-hidden="true"></span><div><strong id="connection-title">Connecting the room</strong><p id="connection-description" role="status">Loading the app address…</p></div><a class="text-link" id="guest-link" href="#connection">Joining the party? ↗</a></div>
-      <noscript><p>JavaScript is needed to load the current room address. You can still read the setup instructions on GitHub.</p></noscript>
-    </section>
-
-    <section class="how-section wrap" id="how" aria-labelledby="how-title">
-      <div class="section-heading"><div><p class="eyebrow">FROM RECORDING TO REHEARSAL</p><h2 id="how-title">Your favorite songs.<br>A little more personal.</h2></div></div>
-      <div class="features">
-        <article><span class="feature-symbol" aria-hidden="true">≋</span><h3>Pull the song apart.</h3><p>Import a recording and separate lead vocals, backing vocals, drums, bass, guitar, piano, and more. Keep the parts you love.</p></article>
-        <article><span class="feature-symbol" aria-hidden="true">♭</span><h3>Make it fit your voice.</h3><p>Change key and speed independently. Overlapping harmonies can follow the lead level, while other backing vocals keep their own.</p></article>
-        <article><span class="feature-symbol" aria-hidden="true">⊞</span><h3>Keep every version.</h3><p>Save a practice mix and a performance mix. Put the same song in several collections, with its cover right where it belongs.</p></article>
-        <article><span class="feature-symbol" aria-hidden="true">↗</span><h3>Pass the mic around.</h3><p>Let friends join the room, queue songs, and share duet parts. One Stage screen plays the music; the other screens control it.</p></article>
-      </div>
-    </section>
-
-    <section class="closing wrap"><div><p class="eyebrow">BUILT FOR THE WAY YOU SING</p><h2>The next song<br>could be yours.</h2></div><div><a class="button primary launch" href="#room">Open Stemroom ↗</a><p class="small">Want to run your own room?<br><a href="https://github.com/tyler-the-griffith/stemroom#setup-from-scratch">Get the source and setup instructions ↗</a></p></div></section>
+  <main>
+    <h1>Opening Stemroom…</h1>
+    <p><a id="queue-link" href="https://lot-shore-precious-denied.trycloudflare.com/#/">Open the Queue</a></p>
+    <p><a href="https://tylergriffith.us/">← Tyler Griffith</a></p>
   </main>
-  <footer class="wrap"><a class="brand" href="./"><img src="assets/favicon.svg" width="25" height="25" alt="">Stemroom</a><p>Made by Tyler Griffith.</p><a href="https://github.com/tyler-the-griffith/stemroom">Source on GitHub ↗</a></footer>
 </body>
 </html>
