@@ -46,20 +46,21 @@ function RowMenu({ entry, song, onClose, onEditSingers }) {
   </div>`;
 }
 
-function QueueRow({ entry, index, room, drag }) {
+function QueueRow({ entry, index, room, drag, current = false }) {
   const song = songOf(room, entry);
   const job = room.jobs?.[entry.songId];
   const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const setKey = (k) => api.patch(`/api/queue/${entry.id}`, { key: clamp(k, -7, 7) });
-  return html`<li class=${'qrow' + (drag.dragId === entry.id ? ' dragging' : '') + (drag.overId === entry.id && drag.dragId !== entry.id ? ' drop-above' : '')}
-      draggable="true"
-      onDragStart=${(e) => { e.dataTransfer.effectAllowed = 'move'; drag.start(entry.id); }}
-      onDragOver=${(e) => { e.preventDefault(); drag.over(entry.id); }}
-      onDrop=${(e) => { e.preventDefault(); drag.drop(entry.id); }}
+  return html`<li class=${'qrow' + (current ? ' current' : (drag.dragId === entry.id ? ' dragging' : '') + (drag.overId === entry.id && drag.dragId !== entry.id ? ' drop-above' : ''))}
+      value=${String(current ? 0 : index + 1)}
+      draggable=${!current}
+      onDragStart=${(e) => { if (current) { e.preventDefault(); return; } e.dataTransfer.effectAllowed = 'move'; drag.start(entry.id); }}
+      onDragOver=${(e) => { if (current) { drag.over(null); return; } e.preventDefault(); drag.over(entry.id); }}
+      onDrop=${current ? undefined : (e) => { e.preventDefault(); drag.drop(entry.id); }}
       onDragEnd=${drag.end}>
-    <span class="grip" aria-hidden="true"><${Icon} name="grip" size=${18} /></span>
-    <span class="num">${index + 1}</span>
+    <span class=${current ? 'fixed-slot' : 'grip'} aria-hidden="true"><${Icon} name=${current ? 'mic' : 'grip'} size=${18} /></span>
+    <span class="num">${current ? 0 : index + 1}</span>
     <${Thumb} src=${song.thumbnail} sm />
     <div class="grow stack" style="gap: 2px; flex: 1 1 200px">
       <span class="title ellipsis">${song.title || 'Loading…'}</span>
@@ -73,11 +74,11 @@ function QueueRow({ entry, index, room, drag }) {
       <span class="chip" style="min-width: 64px; justify-content: center">Key ${fmtKey(entry.key)}</span>
       <button class="icon-btn ghost" type="button" aria-label="Raise key" onClick=${() => setKey(entry.key + 1)}><${Icon} name="plus" size=${16} /></button>
     </span>
-    <span class="status"><${StatusCell} song=${song} job=${job} /></span>
-    <span style="position: relative">
+    <span class="status">${current ? html`<span class="stack current-label"><span class="pill live">Current song</span><span class="hint">Fixed at 0</span></span>` : html`<${StatusCell} song=${song} job=${job} />`}</span>
+    ${!current && html`<span style="position: relative">
       <button class="icon-btn ghost" type="button" aria-label=${`More options for ${song.title || 'this song'}`} aria-expanded=${menu} onClick=${() => setMenu(!menu)}><${Icon} name="more" /></button>
       ${menu && html`<${RowMenu} entry=${entry} song=${song} onClose=${() => setMenu(false)} onEditSingers=${() => setEditing(true)} />`}
-    </span>
+    </span>`}
   </li>`;
 }
 
@@ -263,7 +264,8 @@ export function QueueView() {
             <h2>Up next</h2>
             <span class="muted" style="font-size: 15px">${room.queue.length ? `${room.queue.length} ${room.queue.length === 1 ? 'song' : 'songs'} · about ${minutes} min · drag to reorder` : 'Nothing queued yet'}</span>
           </div>
-          ${room.queue.length > 0 && html`<ol class="qlist">
+          ${(room.current || room.queue.length > 0) && html`<ol class="qlist" start=${room.current ? 0 : 1} aria-label="Current song and upcoming queue">
+            ${room.current && html`<${QueueRow} key=${room.current.id} entry=${room.current} room=${room} drag=${drag} current />`}
             ${room.queue.map((e, i) => html`<${QueueRow} key=${e.id} entry=${e} index=${i} room=${room} drag=${drag} />`)}
           </ol>`}
         </section>

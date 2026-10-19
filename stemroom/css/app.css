@@ -243,6 +243,9 @@ input[type="checkbox"] { accent-color: var(--amber); width: 22px; height: 22px; 
 .qrow { display: flex; align-items: center; gap: 14px; padding: 10px 12px 10px 14px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); flex-wrap: wrap; }
 .qrow.dragging { opacity: .5; }
 .qrow.drop-above { box-shadow: 0 -3px 0 var(--amber); }
+.qrow.current { border-color: var(--amber); background: var(--amber-soft); }
+.qrow .fixed-slot { color: var(--amber); display: grid; place-items: center; width: 28px; height: 44px; }
+.qrow .current-label { align-items: center; gap: 4px; }
 .qrow .grip { cursor: grab; color: var(--dim); display: grid; place-items: center; width: 28px; height: 44px; background: none; border: 0; padding: 0; }
 .qrow .num { font-family: var(--mono); font-size: 14px; color: var(--muted); width: 18px; }
 .qrow .title { font-size: 17px; font-weight: 600; }
