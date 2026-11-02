@@ -116,6 +116,16 @@ strong { font-weight: 600; }
 a { color: var(--cold); }
 code, .mono { font-family: var(--mono); font-size: 0.82em; }
 code { background: var(--code); padding: 0.1em 0.35em; border-radius: 4px; }
+pre {
+  margin: 8px 0 18px;
+  padding: 12px 14px;
+  background: var(--code);
+  border-radius: 6px;
+  overflow-x: auto;
+  font: 0.78em/1.55 var(--mono);
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+.pre-label { margin: 14px 0 0; color: var(--muted); font: 600 0.8em var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
 .hot { color: var(--hot); }
 .cold { color: var(--cold); }
 
@@ -200,6 +210,7 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
     <li><a href="#pressure">Keeping the fluid incompressible</a></li>
     <li><a href="#edges">Edges and plates</a></li>
     <li><a href="#gpu">Running on the GPU</a></li>
+    <li><a href="#shaders">What it teaches about shaders</a></li>
     <li><a href="#visuals">Visuals and interaction</a></li>
     <li><a href="#checks">How we know it is right</a></li>
     <li><a href="#history">What changed along the way</a></li>
@@ -412,8 +423,9 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
 <ul>
   <li>fluid can flow in or out anywhere;</li>
   <li>fluid flowing <em>in</em> arrives at ambient temperature, and fluid flowing <em>out</em> keeps its own;</li>
-  <li>pressure is zero at the edges.</li>
+  <li>pressure is zero where fluid flows out. Where it flows in, pressure is lowered by the energy the fluid needed to get moving: <code>p = −½ ρ u<sub>n</sub>²</code>, where u<sub>n</sub> is the inward speed (Bernoulli's principle for fluid drawn from still surroundings).</li>
 </ul>
+<p>That last rule matters more than it looks. Without it, fluid arrives through an edge already moving and pays nothing for it, so nothing ever slows a current flowing straight through the domain. Each puff that leaks past a plate end added a little momentum to the sides until a draft of room-temperature fluid ran up one side and down the other, at about 3× the speed between the plates and faster than buoyancy alone could ever drive it. With the inflow paying ½ ρ u<sub>n</sub>², a through-draft needs a real push (a column of warm fluid, a chimney effect) to keep going, and the sides now move slower than the gap.</p>
 <p>With a <strong>free stream</strong>, the left edge becomes a fixed inlet blowing ambient fluid to the right, and the plates leave wakes downstream.</p>
 <p>The plates are <strong>solid, no-slip and held at fixed temperature</strong>. Their temperature flickers by ±3%, varying along the plate and from step to step, with a new random pattern every reset. Real surfaces are never perfectly uniform, and these small differences are what break the thin boundary layers into separate plumes. Without them a perfectly symmetric start stays perfectly symmetric.</p>
 <p class="note">The original sketch had a floor held at ambient temperature, a top that only let fluid out, and sides held at ambient. That made the top run cold and the bottom neutral, because cold fluid near the top had nowhere to go while the floor pulled the bottom back to ambient. Those edges are still available in the code as <code>boundaries: 'original'</code>.</p>
@@ -440,8 +452,68 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
 <p>Most of the cost is the <em>number</em> of passes, not the data each moves: cutting texture channels from four to the one or two each field needs saved only about 5%. That is why the pressure and diffusion solvers were chosen for converging in few passes.</p>
 </section>
 
+<section id="shaders">
+<h2><span class="num">8</span>What it teaches about shaders</h2>
+<p>This project is a good first look at shaders because it uses them for something other than drawing. Almost everything a shader does here is arithmetic on numbers stored in images. The same ideas run every game, image filter and machine-learning library on a graphics card.</p>
+
+<h3>The one big idea</h3>
+<p>A <strong>fragment shader</strong> is a small function the GPU runs once for every pixel of an output image, all at the same time. It answers a single question: <em>what value goes in this one pixel?</em> It may read anywhere in its input images, but it can only write its own pixel. Compare the same step, buoyancy, written both ways:</p>
+<p class="pre-label">On the CPU: one loop visits every cell in turn</p>
+<pre><code>for (let j = 1; j &lt; ny - 1; j++)
+  for (let i = 1; i &lt; nx - 1; i++)
+    v[j][i] += B * (T[j][i] - ambient) * dt;</code></pre>
+<p class="pre-label">On the GPU: no loop; this runs for every cell at once</p>
+<pre><code>void main() {
+  ivec2 c = cell();                 // which cell am I?
+  vec4 v = fetch(uVel, c);          // read my velocity
+  if (!onEdge(c) &amp;&amp; !isSolid(c)) {
+    v.y += uStrength * (temperatureAt(c) - uAmbient) * uDt;
+  }
+  outColor = v;                     // write my one output value
+}</code></pre>
+<p>The loop has disappeared: the GPU <em>is</em> the loop. Writing shaders mostly means learning to think from the point of view of one cell.</p>
+
+<h3>High level: thinking in passes</h3>
+<ul>
+  <li><strong>Textures are just grids of numbers.</strong> A texel's red and green channels can hold a velocity (x, y) rather than a color. Velocity, temperature and pressure are each a float texture, and nothing about them is a picture until the final display pass turns temperature into color.</li>
+  <li><strong>A program is a chain of passes.</strong> Each stage of the method (buoyancy, diffusion, advection, the pressure solve) is its own shader. One time step chains about 370 passes, each turning one image into the next.</li>
+  <li><strong>Read one, write the other.</strong> A pass can't read the texture it is writing, so each field has two copies that swap roles after every pass (<em>ping-pong</em>).</li>
+  <li><strong>Repetition means more passes.</strong> A solver that improves its answer step by step, like the pressure and diffusion solvers, runs as the same pass many times. This is why the methods were picked for needing <em>few</em> passes: section 7 shows that the number of passes, not the amount of data, sets the cost.</li>
+  <li><strong>Some jobs are awkward on a GPU.</strong> Anything that combines every cell into one number, such as the average speed behind Re, is a poor fit for "one pixel, one answer". Here those numbers are copied back to the CPU (<code>readPixels</code>), which stalls the GPU, so it happens only every 30 frames.</li>
+</ul>
+
+<h3>Low level: what the code actually does</h3>
+<p>WebGL2 is the browser's interface to the GPU. Every pass in <code>fluid.js</code> follows the same few steps:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Step</th><th>In this project</th></tr></thead>
+  <tbody>
+    <tr><td>Get a GPU context</td><td><code>getContext('webgl2')</code>, plus the <code>EXT_color_buffer_float</code> extension, without which a shader can't write to a float texture.</td></tr>
+    <tr><td>Compile and link</td><td>Each shader is GLSL source text, compiled by the graphics driver at startup (<code>createProgram</code>). A typo shows up as a compile error printed in the browser console, not as a crash. All of them share a header (<code>FRAGMENT_HEADER</code>) with helpers like <code>cell()</code> and <code>fetch()</code>.</td></tr>
+    <tr><td>Make the data</td><td><code>createTarget</code> makes a texture (R32F for one number per cell, RG32F for two) and a <em>framebuffer</em>, which lets a shader draw into that texture instead of onto the screen.</td></tr>
+    <tr><td>Cover every cell</td><td>The GPU only runs fragment shaders where it draws a shape. The vertex shader draws one triangle big enough to cover the whole grid, computed from <code>gl_VertexID</code>, so no vertex data is needed.</td></tr>
+    <tr><td>Pass the inputs</td><td><code>runPass</code> binds each input texture to a numbered <em>texture unit</em> and sets <em>uniforms</em>: values that are the same for every cell, like the time step or the buoyancy strength.</td></tr>
+    <tr><td>Run and swap</td><td>One <code>drawArrays</code> call runs the shader over every cell; then the read and write copies swap.</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Lessons this project learned the hard way</h3>
+<ul>
+  <li><strong>A cell can't see its neighbors' new values.</strong> All cells run at once, so in a single pass each one sees the old values around it. The diffusion solver colors cells like a checkerboard and updates one color per pass. Every red cell's neighbors are black, so each half-pass uses the freshest values available.</li>
+  <li><strong>Pixels have addresses two ways.</strong> <code>texture()</code> uses fractions from 0 to 1 and can blend between texels; <code>texelFetch()</code> uses whole-number cell indices and returns exactly one texel. A simulation wants exact cells, so it uses <code>texelFetch</code> and does its own blending (<code>sampleBilinear</code>), because hardware blending of 32-bit float textures isn't available on every GPU.</li>
+  <li><strong>Floats are less precise than they look.</strong> The random flicker on the plates comes from a hash of a seed. The seed is kept below 1000, because a 32-bit float has only about 7 significant digits: with a large seed the hash loses the small differences between neighboring cells, and the pattern stops looking random.</li>
+  <li><strong>Off-by-one errors become physics errors.</strong> Shader edges and plates are <code>if</code> tests on cell indices. One test that treated the two ends of a plate differently on the coarse grids made the whole flow run cold (section 11).</li>
+  <li><strong>There's no <code>console.log</code> inside a shader.</strong> Debugging means copying textures back to the CPU and testing them. The mirror test in section 10 is exactly that: it compares a flow with its mirror image after each stage, which pins down the stage that's wrong.</li>
+</ul>
+
+<h3>Vertex shaders too</h3>
+<p>The tracers use the other half of the pipeline. Each particle's position is stored as one texel of a texture and moved each step by a fragment shader. To draw them, a <strong>vertex shader</strong> runs twice per particle: it reads the position straight from that texture, and the two vertices are the ends of a short line, one at the particle and one a step back along the flow. <em>Additive blending</em> (<code>blendFunc(ONE, ONE)</code>) adds overlapping streaks together, and a fade pass dims the streaks each frame, which leaves the trails. The particles never leave the GPU.</p>
+
+<h3>Where to start reading</h3>
+<p>In <code>fluid.js</code>: the <code>buoyancy</code> shader (the simplest real one), then <code>FRAGMENT_HEADER</code> (the shared helpers), <code>runPass()</code> (how any pass is launched), <code>createTarget()</code> (textures and framebuffers), and <code>TRACER_VERTEX_SHADER</code> (a vertex shader reading data from a texture). Section 13 maps the rest.</p>
+</section>
+
 <section id="visuals">
-<h2><span class="num">8</span>Visuals and interaction</h2>
+<h2><span class="num">9</span>Visuals and interaction</h2>
 <h3>Color</h3>
 <p>The display shader samples the fine temperature grid smoothly and maps it through five colors you can pick yourself: max cold, cold, middle (ambient), hot and max hot. Each half of the bar blends linearly through its three colors, and <strong>Average mids</strong> sets cold and hot halfway between their neighbors. The color bar in the side panel is drawn with the same stops, so it always matches the picture.</p>
 <h3>Flow tracers</h3>
@@ -456,11 +528,18 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
   <li>the controls in two columns. On the left, <strong>Fluid</strong> (with the Dimensionless and Reasonable/Extreme min/max buttons) and, under it, <strong>Meta controls</strong> (Pause, Restart, Mouse, Labels, Tracers, simulation speed and the frame rate). On the right, <strong>Setup</strong> (plate width, free stream) and <strong>Combinations</strong>. Each slider shows its value and a one-line hint;</li>
   <li>the <strong>Flow numbers</strong> panel.</li>
 </ul>
-<p>The simulation keeps its 3:2 shape and resizes with the window; the side panel sits beside it on wide screens and below it on phones, and the control blocks and number tiles rearrange to fit. The color picker is part of the page, rather than the browser's own, so it always opens on screen. Your colors are remembered in your browser.</p>
+<p>The simulation keeps its 3:2 shape and resizes with the window. Its size depends on the window's shape:</p>
+<ul>
+  <li><strong>Narrow windows</strong> (a phone held upright): the simulation takes the full width, with everything else below it.</li>
+  <li><strong>Roughly square windows</strong> (half a laptop screen): the side panel sits beside the simulation, and the simulation's height is limited so the first controls show below it.</li>
+  <li><strong>Wide windows</strong> (a full-screen laptop, a phone on its side): the simulation fills the window's height, and all the width to its right becomes a column of controls, split into as many sub-columns as fit. A column is never narrower than 440 px, so every slider keeps a usable length; a narrower strip holds just the side panel, stretched to fill it.</li>
+</ul>
+<p>The side panel and control blocks are then packed like boxes on shelves. Each one goes into the first column beside the simulation with room for it, without growing taller than the simulation, so a shorter block moves up into a gap left by a taller one. Whatever doesn't fit goes below, each block into the shortest column so far, with the flow numbers across the full width. Blocks only sit side by side below when each still gets 440 px; otherwise they stack. On a phone, where a block is narrower than that, each slider row puts the name and value on one line and the slider full width underneath. When a block changes height (switching Dimensionless, for example), the blocks are packed again.</p>
+<p>The number tiles rearrange to fit whatever width their column has. The color picker is part of the page, rather than the browser's own, so it always opens on screen. Your colors are remembered in your browser.</p>
 </section>
 
 <section id="checks">
-<h2><span class="num">9</span>How we know it is right</h2>
+<h2><span class="num">10</span>How we know it is right</h2>
 <h3>The mirror test</h3>
 <p>The physics is exactly symmetric under a top-to-bottom flip with hot and cold swapped (and under a left-to-right flip). So a developed flow and its mirror image must stay mirror images through every step. Running each stage on both and comparing pinpoints any stage that breaks the symmetry.</p>
 <p>It found the coarse-plate bug: a 1.9% mirror error per step in the pressure solve, now 0.0003% (rounding). It passes across grid sizes, plate widths and temperatures, the free stream, both brush tools, both pressure solvers, both advection schemes and both edge modes. The one asymmetry left is the checkerboard order in diffusion, about 0.01% per step, far below anything visible.</p>
@@ -474,11 +553,12 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
     <tr><td>Divergent field through the projection</td><td>cleaned up</td><td>33× smaller</td></tr>
     <tr><td>Blob spreading by diffusion</td><td>variance +2κt, heat kept</td><td>99%, heat kept</td></tr>
     <tr><td>Mean temperature from a symmetric start</td><td>stays 0</td><td>≈ 0 (was −0.03)</td></tr>
+    <tr><td>Room-temperature fluid beside the plates (section 6)</td><td>slower than the flow between the plates</td><td>RMS 0.30–0.37 vs 0.35–0.45 (was 1.38 vs 0.45)</td></tr>
   </tbody>
 </table></div>
 
 <h3>Grid convergence</h3>
-<p>A correct solver gives averages that change smoothly and level off as the grid gets finer. Time-averaged over several runs:</p>
+<p>A correct solver gives averages that change smoothly and level off as the grid gets finer. Time-averaged over several runs (measured before the inflow-pressure fix of section 6, which mainly slows the fluid beside the plates):</p>
 <div class="table-wrap"><table>
   <thead><tr><th>Grid</th><th class="n">144 × 96</th><th class="n">216 × 144</th><th class="n">288 × 192</th><th class="n">432 × 288</th></tr></thead>
   <tbody>
@@ -486,11 +566,11 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
     <tr><td>Mean speed</td><td class="n">0.30</td><td class="n">0.32</td><td class="n">0.33</td><td class="n">0.34</td></tr>
   </tbody>
 </table></div>
-<p>Before the audit, mean |temperature| on the three finer grids jumped around (0.196, 0.149, 0.173), because of the plate bug in section 10. Changing the time step from 0.024 to 0.12 stays within the run-to-run spread of about ±20%, which comes from the flow being chaotic.</p>
+<p>Before the audit, mean |temperature| on the three finer grids jumped around (0.196, 0.149, 0.173), because of the plate bug in section 11. Changing the time step from 0.024 to 0.12 stays within the run-to-run spread of about ±20%, which comes from the flow being chaotic.</p>
 </section>
 
 <section id="history">
-<h2><span class="num">10</span>What changed along the way</h2>
+<h2><span class="num">11</span>What changed along the way</h2>
 <h3>From class sketch to GPU</h3>
 <ul>
   <li><strong>CPU original:</strong> 72 × 48 grid, 7 pressure passes, 2 diffusion passes, an optional one-time ripple to break symmetry.</li>
@@ -509,6 +589,7 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
     <tr><td>Too few coarse-grid passes</td><td>Cold fluid slowly flooded the domain</td></tr>
     <tr><td>Fixed diffusion sweep count</td><td>Strong diffusion spread only 61% as fast as it should</td></tr>
     <tr><td>Divergence readout units</td><td>Shown 96× too small</td></tr>
+    <tr><td>Open edges let inflow arrive for free</td><td>Room-temperature drafts beside the plates grew to about 3× the speed between them (tracers raced up and down the sides); fixed with the Bernoulli inflow pressure</td></tr>
   </tbody>
 </table></div>
 <h3>Ideas tried and dropped</h3>
@@ -521,7 +602,7 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
 </section>
 
 <section id="limits">
-<h2><span class="num">11</span>Limits</h2>
+<h2><span class="num">12</span>Limits</h2>
 <ul>
   <li><strong>2D.</strong> Real convection is 3D; 2D flows hold on to large swirls longer.</li>
   <li><strong>No turbulence model.</strong> At Ra ≈ 10⁷ the thinnest layers are about one cell thick, so the smallest details depend on grid size.</li>
@@ -532,7 +613,7 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
 </section>
 
 <section id="code">
-<h2><span class="num">12</span>Map of the code</h2>
+<h2><span class="num">13</span>Map of the code</h2>
 <div class="table-wrap"><table>
   <thead><tr><th>File</th><th>What it holds</th></tr></thead>
   <tbody>
@@ -553,6 +634,7 @@ a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-ra
     <tr><td><code>advect</code>, <code>maccormack</code></td><td>Backwards tracing, then the error correction.</td></tr>
     <tr><td><code>project()</code>, <code>vCycle()</code></td><td>Divergence, multigrid pressure, gradient subtraction.</td></tr>
     <tr><td><code>pressureSmooth</code>, <code>pressureResidual</code>, <code>restrict</code>, <code>prolong</code></td><td>The four multigrid shaders.</td></tr>
+    <tr><td><code>pressureInlet</code></td><td>Edge pressure before the solve: −½ u<sub>n</sub>² where fluid flows in.</td></tr>
     <tr><td><code>velocityBoundary</code>, <code>temperatureBoundary</code></td><td>Edges, inlet and plates (with their flicker).</td></tr>
     <tr><td><code>display</code></td><td>Temperature to color, plus tracer streaks.</td></tr>
     <tr><td><code>tracerUpdate</code>, <code>stepTracers()</code></td><td>Moving and drawing the tracer particles.</td></tr>

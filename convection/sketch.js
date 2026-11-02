@@ -50,7 +50,9 @@ const NY = BASE_NY * RES;
 // On-screen size of the simulation. Set by applyLayout() to fit the window,
 // always 3:2 like the grid.
 const SIDE_W = 190;      // side panel width when it sits beside the simulation
-const WIDE_LAYOUT_MIN = 760; // narrower windows put the side panel below
+const WIDE_LAYOUT_MIN = 745; // narrower windows (not counting the scrollbar) put the side panel below
+const BLOCK_MIN = 440;   // narrowest column a control block is laid out in, so
+                         // its sliders keep a usable length (about 160 px)
 let SIM_W = 864;
 let SIM_H = 576;
 let CELL_PX = SIM_W / NX;
@@ -159,6 +161,10 @@ let measuredSpeed = null;  // RMS flow speed, read back from the GPU
 let solver = null;
 let app;
 let stage;
+let reportBar;
+let rail;  // column right of the simulation (see packBlocks)
+let below; // area under the simulation and the rail
+let packItems = []; // the side panel and control blocks, in reading order
 let divergenceRms = null;
 
 // ui
@@ -214,7 +220,7 @@ function setup() {
   app.addClass('app');
 
   // Report bar across the top of the page; the whole bar is the link
-  const reportBar = createA('report.html', '');
+  reportBar = createA('report.html', '');
   reportBar.addClass('report-bar');
   reportBar.parent(app);
   createSpan('See report').addClass('report-heading').parent(reportBar);
@@ -227,6 +233,15 @@ function setup() {
   stage = createDiv('');
   stage.addClass('stage');
   stage.parent(top);
+
+  // The side panel and control blocks are placed into these two by
+  // packBlocks(), whenever the layout changes.
+  rail = createDiv('');
+  rail.addClass('rail');
+  rail.parent(top);
+  below = createDiv('');
+  below.addClass('below');
+  below.parent(app);
 
   try {
     solver = new FluidSolver({
@@ -251,7 +266,7 @@ function setup() {
   p5Canvas.addEventListener('pointerenter', () => { pointerOverFluid = true; });
   p5Canvas.addEventListener('pointerleave', () => { pointerOverFluid = false; });
 
-  buildSidePanel(top);
+  buildSidePanel(rail);
   buildControls();
   applyLayout();
   resetSimulation();
@@ -288,32 +303,158 @@ function draw() {
 
 // ---- Layout: fit the simulation to the window ----
 
-// The simulation keeps its 3:2 shape. In a wide window it sits beside the
-// side panel; in a narrow one it takes the full width and the panel goes
-// below. Its height is also limited so the first controls stay in view.
+// The simulation keeps its 3:2 shape. Three arrangements, whichever gives
+// the biggest simulation for the window's shape:
+// - stacked (narrow windows, phones held upright): the simulation, then
+//   everything else below it;
+// - beside (about square windows): the side panel beside the simulation,
+//   the controls below. The simulation's height is limited so the first
+//   controls stay in view;
+// - columns (wide windows: a full-screen laptop, a phone on its side): the
+//   simulation fills the height, and the whole width to its right becomes a
+//   column of controls (packBlocks fills it), so there is no empty band.
+// railW is the width of the column right of the simulation (0 if none).
 function simulationSize() {
+  // The window's size read directly: p5's windowWidth/windowHeight can lag a
+  // resize by a frame. The width leaves out the page's scrollbar (its space
+  // is always reserved, see style.css).
+  const windowWidth = document.documentElement.clientWidth;
+  const windowHeight = window.innerHeight;
   const pad = 16; // side gutter, matching .app in style.css
-  const wide = windowWidth >= WIDE_LAYOUT_MIN;
-  const availableW = windowWidth - 2 * pad - (wide ? SIDE_W + pad : 0);
-  const availableH = Math.max(240, windowHeight - 210); // room for the report bar and first controls
+  const gap = 12; // matching .top in style.css
   // A multiple of 3 keeps the 3:2 shape exact, so drawn plates and the brush
   // line up with the simulation image vertically as well as horizontally.
-  const w = 3 * Math.floor(Math.min(availableW, availableH * 1.5, 1600) / 3);
-  return { w, h: (w / 3) * 2, wide };
+  const fit = (w, h) => 3 * Math.floor(Math.max(0, Math.min(w, h * 1.5, 1600)) / 3);
+  const shape = (w, mode, railW) => ({ w, h: (w / 3) * 2, mode, railW });
+
+  const wide = windowWidth >= WIDE_LAYOUT_MIN;
+  const besideW = fit(
+    windowWidth - 2 * pad - (wide ? SIDE_W + gap : 0),
+    Math.max(240, windowHeight - 210) // room for the report bar and first controls
+  );
+
+  // Columns: everything below the report bar is the simulation's height, and
+  // at least one block's width is left beside it.
+  const barH = reportBar.elt.offsetHeight + 12; // + its margin
+  const railSimW = fit(windowWidth - 2 * pad - gap - BLOCK_MIN, windowHeight - barH - 2 * 12);
+
+  // Columns unless it costs the simulation more than 15% of its size.
+  // Either way, the column beside the simulation takes all the width left
+  // over, so there is never an empty band; packBlocks puts control blocks in
+  // it only when it is at least BLOCK_MIN wide.
+  if (railSimW >= 0.85 * besideW) {
+    return shape(railSimW, 'columns', windowWidth - 2 * pad - gap - railSimW);
+  }
+  if (!wide) return shape(besideW, 'stacked', 0);
+  return shape(besideW, 'beside', windowWidth - 2 * pad - gap - besideW);
 }
 
+let layout = { mode: 'stacked', railW: 0 };
+
 function applyLayout() {
-  const { w, h, wide } = simulationSize();
+  // Short windows get a slimmer report bar; set before sizing, since the
+  // bar's height is part of the columns fit.
+  app.elt.classList.toggle('short', window.innerHeight < 560);
+  const { w, h, mode, railW } = simulationSize();
+  layout = { mode, railW };
   SIM_W = w;
   SIM_H = h;
   CELL_PX = SIM_W / NX;
   stage.style('width', w + 'px');
   stage.style('height', h + 'px');
-  app.elt.classList.toggle('wide', wide);
-  app.elt.classList.toggle('narrow', !wide);
+  for (const m of ['stacked', 'beside', 'columns']) app.elt.classList.toggle(m, m === mode);
   if (solver) solver.resize(w, h);
   resizeCanvas(w, h);
+  packBlocks();
 }
+
+// Places the side panel and control blocks. First into the column right of
+// the simulation: it is split into as many sub-columns as fit (each at least
+// BLOCK_MIN wide, together filling the width), and each block goes into the
+// first sub-column with room for it without growing taller than the
+// simulation, so a later, shorter block moves up into a gap. A column
+// narrower than BLOCK_MIN (the beside layout, usually) holds only the side
+// panel, which goes there however tall it is. Everything else goes below, in reading order: the blocks into
+// as many columns as fit, each into the shortest so far, then the wide ones
+// (flow numbers, descriptions) across the full width.
+let packing = false;
+const packedHeights = new Map();
+
+function packBlocks() {
+  if (!packItems.length) return;
+  packing = true;
+  const gap = 12;
+  const newColumn = (parent) => {
+    const c = document.createElement('div');
+    c.className = 'pack-col';
+    parent.appendChild(c);
+    return c;
+  };
+
+  for (const item of packItems) item.el.remove();
+  rail.elt.replaceChildren();
+  below.elt.replaceChildren();
+
+  // The rail
+  const railW = Math.floor(layout.railW);
+  rail.style('width', railW + 'px');
+  rail.elt.hidden = railW === 0;
+  const blocksFit = railW >= BLOCK_MIN;
+  const count = blocksFit ? Math.floor((railW + gap) / (BLOCK_MIN + gap)) : railW > 0 ? 1 : 0;
+  const columns = Array.from({ length: count }, () => newColumn(rail.elt));
+  const leftover = [];
+  for (const item of packItems) {
+    let placed = false;
+    if (blocksFit || item.narrow) {
+      for (const column of columns) {
+        column.appendChild(item.el);
+        if (column.offsetHeight <= SIM_H || !blocksFit) {
+          placed = true;
+          break;
+        }
+        item.el.remove();
+      }
+    }
+    if (!placed) leftover.push(item);
+  }
+  for (const column of columns) if (!column.childElementCount) column.remove();
+  if (!rail.elt.childElementCount) rail.elt.hidden = true;
+
+  // Below
+  const blocks = leftover.filter((item) => !item.wide);
+  const wideItems = leftover.filter((item) => item.wide);
+  if (blocks.length) {
+    const row = document.createElement('div');
+    row.className = 'pack-row';
+    below.elt.appendChild(row);
+    const n = Math.max(1, Math.min(blocks.length, Math.floor((below.elt.clientWidth + gap) / (BLOCK_MIN + gap))));
+    const belowColumns = Array.from({ length: n }, () => newColumn(row));
+    for (const item of blocks) {
+      const shortest = belowColumns.reduce((a, b) => (b.offsetHeight < a.offsetHeight ? b : a));
+      shortest.appendChild(item.el);
+    }
+  }
+  for (const item of wideItems) below.elt.appendChild(item.el);
+  below.elt.hidden = !leftover.length;
+
+  for (const item of packItems) packedHeights.set(item.el, item.el.offsetHeight);
+  packing = false;
+}
+
+// Blocks change height when their contents change (Dimensionless, the range
+// button, notes, fonts loading), so repack then. Only a real change in a
+// block's own height triggers it, so packing never re-triggers itself.
+let repackQueued = false;
+const blockResizeObserver = new ResizeObserver(() => {
+  if (packing || repackQueued) return;
+  const changed = packItems.some((item) => Math.abs(item.el.offsetHeight - (packedHeights.get(item.el) ?? -1)) > 1);
+  if (!changed) return;
+  repackQueued = true;
+  requestAnimationFrame(() => {
+    repackQueued = false;
+    packBlocks();
+  });
+});
 
 function windowResized() {
   applyLayout();
@@ -380,21 +521,11 @@ function simulationParams() {
 // ---- Controls under the simulation ----
 
 function buildControls() {
-  const controlPanel = createDiv('');
-  controlPanel.addClass('controls');
-  controlPanel.parent(app);
-
-  const blocks = createDiv('');
-  blocks.addClass('control-blocks');
-  blocks.parent(controlPanel);
-
-  // First column: Fluid, then Meta controls
-  const leftStack = createDiv('');
-  leftStack.addClass('block-stack');
-  leftStack.parent(blocks);
+  // Blocks are created in the rail; packBlocks() places them.
+  const controlPanel = rail;
 
   // Fluid: real properties, or the two dimensionless numbers
-  const fluid = addBlock(leftStack, 'Fluid');
+  const fluid = addBlock(controlPanel, 'Fluid');
   ui.dimensionlessButton = addButton(fluid.buttons, 'Dimensionless: OFF', () => setDimensionless(!dimensionless));
   ui.rangeButton = addButton(fluid.buttons, '', () => setExtendedRange(!extendedRange));
   ui.rangeButton.addClass('range-button');
@@ -439,7 +570,7 @@ function buildControls() {
   ui.fluidNote.parent(fluid.body);
 
   // Meta controls: running the simulation and what is drawn over it
-  const meta = addBlock(leftStack, 'Meta controls');
+  const meta = addBlock(controlPanel, 'Meta controls');
   statusText = createSpan('');
   statusText.addClass('status');
   statusText.parent(meta.buttons);
@@ -471,11 +602,7 @@ function buildControls() {
   metaList.parent(meta.body);
   speedSlider = addControl(metaList, 'speed', DEFAULTS.speed, (v) => nf(v, 1, 2) + '×');
 
-  // Setup and Combinations share the second column
-  const stack = createDiv('');
-  stack.addClass('block-stack');
-  stack.parent(blocks);
-  const setupBlock = addBlock(stack, 'Setup');
+  const setupBlock = addBlock(controlPanel, 'Setup');
   const setupList = createDiv('');
   setupList.addClass('control-list');
   setupList.parent(setupBlock.body);
@@ -485,7 +612,7 @@ function buildControls() {
     'A wind blowing in from the left edge');
 
   // Combinations: a random interesting one, the defaults, or copy the current
-  const combos = addBlock(stack, 'Combinations');
+  const combos = addBlock(controlPanel, 'Combinations');
   const comboButtons = createDiv('');
   comboButtons.addClass('combo-buttons');
   comboButtons.parent(combos.body);
@@ -551,6 +678,20 @@ function buildControls() {
     createDiv(line).parent(descriptions);
   }
   refreshFluidNote();
+
+  // Everything packBlocks() places, in reading order. narrow: fits the
+  // beside layout's side-panel-wide column. wide: spans the full width when
+  // it goes below.
+  packItems = [
+    { el: side.panel.elt, narrow: true },
+    { el: fluid.block.elt },
+    { el: meta.block.elt },
+    { el: setupBlock.block.elt },
+    { el: combos.block.elt },
+    { el: numbers.block.elt, wide: true },
+    { el: descriptions.elt, wide: true },
+  ];
+  for (const item of packItems) blockResizeObserver.observe(item.el);
 }
 
 // A titled block of controls: returns { body, buttons }.
@@ -1033,6 +1174,7 @@ function buildSidePanel(parentElement) {
   const panel = createDiv('');
   panel.addClass('side-panel');
   panel.parent(parentElement);
+  side.panel = panel;
 
   const section = (title) => {
     const s = createDiv('');

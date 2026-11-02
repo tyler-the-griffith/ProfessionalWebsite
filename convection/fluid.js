@@ -80,6 +80,14 @@ const FLUID_DEFAULTS = {
   // 'original': the CPU sketch's edges: a floor held at ambient temperature,
   //   a top that only lets fluid out, and sides held at ambient.
   boundaries: 'open',
+  // Open edges only. Fluid drawn in through an edge comes from still
+  // surroundings, so it arrives at a pressure lowered by the energy it took to
+  // get moving (Bernoulli: p = -1/2 rho u_n^2). That costs every inflow a
+  // drag growing with its speed. Without it, inflow arrives already moving and
+  // pays nothing, so the open sides turn into a frictionless chimney: a draft
+  // of ambient-temperature fluid builds up beside the plates (measured at 3x
+  // the speed between the plates) and never slows down.
+  bernoulliInflow: true,
 };
 
 const VERTEX_SHADER = `#version 300 es
@@ -343,9 +351,10 @@ void main() {
   ivec2 n = gridSize();
   float p;
   if (openEdges() && onEdge(c)) {
-    // Open edges are at ambient pressure, except a fixed inlet, where the
-    // velocity is given instead (zero pressure gradient).
-    p = (forcedInlet() && c.x == 0) ? fetch(uP, ivec2(1, c.y)).x : 0.0;
+    // Open edges keep the pressure set by pressureInlet before the solve
+    // (zero on coarse levels, where p is a correction). A fixed inlet has its
+    // velocity given instead (zero pressure gradient).
+    p = (forcedInlet() && c.x == 0) ? fetch(uP, ivec2(1, c.y)).x : fetch(uP, c).x;
   } else if (c.y == n.y - 1) {
     p = 0.0;
   } else if (c.y == 0) {
@@ -453,7 +462,29 @@ void main() {
   addCoarse(k + ivec2(0, 1), (1.0 - f.x) * f.y, sum, weight);
   addCoarse(k + ivec2(1, 1), f.x * f.y, sum, weight);
   float e = weight > 0.0 ? sum / weight : 0.0;
+  // Open-edge pressures are fixed values, not unknowns: leave them alone.
+  if (openEdges() && onEdge(c) && !(forcedInlet() && c.x == 0)) e = 0.0;
   outColor = vec4(fetch(uP, c).x + e, 0.0, 0.0, 1.0);
+}`,
+
+  // Pressure on the open edges before the solve (zero inside). Where fluid
+  // flows in, it was drawn from still surroundings at ambient pressure, so
+  // its pressure is lower by the kinetic energy of its inward motion:
+  // p = -1/2 u_n^2. The solver's p is pressure * dt / density (the gradient
+  // pass subtracts grad p from the velocity), hence the factor uDt.
+  pressureInlet: `
+uniform sampler2D uVel;
+uniform float uDt;
+void main() {
+  ivec2 c = cell();
+  float p = 0.0;
+  if (openEdges() && onEdge(c) && !(forcedInlet() && c.x == 0)) {
+    ivec2 inside = interiorNeighbor(c);
+    vec2 inward = normalize(vec2(inside - c));
+    float un = max(dot(fetch(uVel, inside).xy, inward), 0.0);
+    p = -0.5 * un * un * uDt;
+  }
+  outColor = vec4(p, 0.0, 0.0, 1.0);
 }`,
 
   // Finite-difference pressure gradient correction. Across a plate face the
@@ -840,7 +871,7 @@ class FluidSolver {
 
     this.advect(this.velocity, dt);
     this.applyVelocityBoundaries(params);
-    this.project(params);
+    this.project(params, dt); // the inflow drag is applied once per step, here
 
     this.diffuse(this.temperature, params.thermalDiffusion, dt, params);
     this.applyTemperatureBoundaries(params);
@@ -1093,11 +1124,17 @@ class FluidSolver {
   }
 
   // Pressure projection for incompressible flow
-  project(params) {
+  // inflowDt > 0 sets the Bernoulli pressure on inflowing open-edge cells
+  // (see FLUID_DEFAULTS.bernoulliInflow); otherwise the edges are at zero.
+  project(params, inflowDt = 0) {
     const plates = this.boundaryUniforms(params);
     this.runPass('divergence', this.divergence, { uVel: this.velocity.read.texture, uH: this.h, ...plates });
 
-    this.clearTarget(this.pressure.read, 0);
+    this.runPass('pressureInlet', this.pressure, {
+      uVel: this.velocity.read.texture,
+      uDt: this.config.bernoulliInflow ? inflowDt : 0,
+      ...plates,
+    });
     if (this.config.pressureSolver === 'multigrid') {
       for (let i = 0; i < this.config.multigridCycles; i++) {
         this.vCycle(0, params);
@@ -1147,6 +1184,8 @@ class FluidSolver {
       uCoarseSize: [coarser.rhs.width, coarser.rhs.height],
       uCoarseHotPlate: coarsePlates.uHotPlate,
       uCoarseColdPlate: coarsePlates.uColdPlate,
+      uOpenEdges: coarsePlates.uOpenEdges,
+      uFreeStream: coarsePlates.uFreeStream,
     });
     this.smoothPressure(level, params, 2, 0.8);
   }

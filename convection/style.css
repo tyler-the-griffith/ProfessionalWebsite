@@ -26,6 +26,11 @@
 html, body {
   margin: 0;
 }
+/* Always keep room for the page scrollbar, so the layout's width doesn't
+   change when the page becomes tall enough to scroll. */
+html {
+  scrollbar-gutter: stable;
+}
 /* Elements hidden with the hidden attribute stay hidden even when a class
    gives them a display value (grid, flex). */
 [hidden] {
@@ -40,9 +45,10 @@ canvas {
   display: block;
 }
 
-/* Page layout: simulation + side panel on top, controls below. In a wide
-   window the side panel sits beside the simulation; in a narrow one
-   (class "narrow", set by sketch.js) it goes underneath. */
+/* Page layout. sketch.js sizes the simulation for the window's shape (class
+   stacked, beside or columns on .app) and packBlocks() places the side panel
+   and control blocks: into .rail, the column right of the simulation, then
+   .below. Both are made of .pack-col columns. */
 .app {
   box-sizing: border-box;
   padding-block: 12px;
@@ -53,8 +59,30 @@ canvas {
   gap: 12px;
   align-items: flex-start;
 }
-.app.narrow .top {
+.rail,
+.pack-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.rail {
+  flex: none; /* width set by sketch.js */
+}
+.pack-col {
+  container-type: inline-size; /* number tiles fit the column, not the window */
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+.below {
+  container-type: inline-size;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* WebGL simulation canvas with the p5 overlay canvas layered on top */
@@ -77,14 +105,9 @@ canvas {
 /* ---- Side panel ---- */
 .side-panel {
   box-sizing: border-box;
-  width: 190px;
-  flex: none;
   padding: 4px 4px 0;
   background: var(--panel);
   font-size: 12px;
-}
-.app.narrow .side-panel {
-  width: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 0 16px;
@@ -288,14 +311,10 @@ canvas {
   line-height: 1.6;
 }
 
-/* ---- Controls under the simulation ---- */
-.controls {
-  margin-top: 14px;
-  font-size: 14px;
-  display: grid;
-  gap: 12px;
-}
+/* ---- Control blocks ---- */
 .control-block {
+  container-type: inline-size; /* its slider rows adapt to its width */
+  font-size: 14px;
   min-width: 0;
   background: var(--block);
   border: 1px solid var(--rule);
@@ -332,19 +351,6 @@ canvas {
   line-height: 1.5;
 }
 
-/* Fluid, Setup and Combinations side by side when there is room */
-.control-blocks {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  gap: 12px;
-  align-items: start;
-}
-.block-stack {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
 /* ---- Flow numbers: the main readout ---- */
 .number-tiles {
   display: grid;
@@ -352,10 +358,10 @@ canvas {
   gap: 10px;
 }
 /* 1, 2 or 4 across, never 3 + 1 */
-@media (min-width: 560px) {
+@container (min-width: 520px) {
   .number-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (min-width: 1100px) {
+@container (min-width: 1060px) {
   .number-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .number-tile {
@@ -467,8 +473,21 @@ canvas {
 .control {
   display: grid;
   grid-template-columns: 9.5em minmax(0, 1fr) 6.5em; /* names line up, so sliders do */
+  grid-template-areas: "name slider value" "hint hint hint";
   align-items: center;
   gap: 4px 10px;
+}
+.control-name { grid-area: name; }
+.control-slider { grid-area: slider; }
+.control-value { grid-area: value; }
+.control-hint { grid-area: hint; }
+/* In a narrow block (a phone), name and value share a line and the slider
+   gets the block's full width below them, rather than a sliver between. */
+@container (max-width: 405px) {
+  .control {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "name value" "slider slider" "hint hint";
+  }
 }
 .control-name {
   font-weight: 600;
@@ -483,7 +502,6 @@ canvas {
   font-variant-numeric: tabular-nums;
 }
 .control-hint {
-  grid-column: 1 / -1;
   color: var(--ink-muted);
   font-size: 12px;
 }
@@ -615,6 +633,11 @@ input[type="range"]:focus-visible {
 .report-bar:hover { border-color: var(--link); }
 .report-bar:hover .report-link { filter: brightness(1.1); }
 .report-bar:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Short windows (a phone on its side): a slimmer bar leaves the height to
+   the simulation. */
+.app.short .report-bar { padding: 6px 12px; margin-bottom: 8px; }
+.app.short .report-heading { font-size: 17px; }
+.app.short .report-link { padding: 5px 10px; font-size: 13px; }
 
 
 /* Meta controls: smaller buttons so all five fit on one row */
