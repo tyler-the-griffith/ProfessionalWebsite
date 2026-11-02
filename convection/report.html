@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Convection Between Reservoirs Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single reading column (about 68 characters) with a sticky contents
+   rail on wide screens; the rail becomes a list at the top on narrow ones.
+   Color: a cool lab-paper ground, ink, and the simulation's own two
+   temperatures (cold blue, hot amber) as the only accents. */
+:root {
+  --paper: #f4f6f9;
+  --sheet: #ffffff;
+  --ink: #161a20;
+  --muted: #59626e;
+  --rule: #d8dde4;
+  --code: #e9edf2;
+  --cold: #2a68ad;
+  --hot: #b65e14;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1116; --sheet: #141920; --ink: #e5e9ee; --muted: #9aa4b0;
+    --rule: #28303a; --code: #1a2029; --cold: #74aef0; --hot: #eea257;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1116; --sheet: #141920; --ink: #e5e9ee; --muted: #9aa4b0;
+  --rule: #28303a; --code: #1a2029; --cold: #74aef0; --hot: #eea257;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 17px/1.65 var(--body);
+  -webkit-text-size-adjust: 100%;
+}
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 32px 64px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+@media (min-width: 980px) {
+  .page { grid-template-columns: 220px minmax(0, 1fr); gap: 56px; padding-inline: 32px; }
+}
+
+/* Contents */
+nav.toc { font: 14px/1.5 var(--display); }
+nav.toc h2 {
+  font: 600 12px/1 var(--display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; counter-reset: toc; }
+nav.toc li { counter-increment: toc; display: grid; grid-template-columns: 1.8em 1fr; }
+nav.toc li::before { content: counter(toc); color: var(--muted); font-variant-numeric: tabular-nums; }
+nav.toc a { color: var(--ink); text-decoration: none; }
+nav.toc a:hover { color: var(--cold); }
+nav.toc a.back {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-bottom: 24px; padding: 12px 16px;
+  background: var(--cold); color: var(--paper);
+  border-radius: 8px;
+  font: 700 16px/1.2 var(--display); text-decoration: none;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--cold) 35%, transparent);
+}
+nav.toc a.back:hover { color: var(--paper); filter: brightness(1.08); }
+nav.toc a.back:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+@media (min-width: 980px) {
+  nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; }
+}
+
+/* Reading column */
+main { min-width: 0; max-width: 68ch; }
+header.title { margin-bottom: 40px; }
+.kicker {
+  font: 600 12px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--hot); margin: 0 0 12px;
+}
+h1 {
+  font: 700 clamp(34px, 6vw, 52px)/1.05 var(--display);
+  letter-spacing: -0.02em; margin: 0 0 16px; text-wrap: balance;
+}
+.lede { font-size: 20px; line-height: 1.55; color: var(--muted); margin: 0; }
+section { padding-top: 24px; margin-top: 24px; border-top: 1px solid var(--rule); scroll-margin-top: 16px; }
+h2 {
+  font: 700 28px/1.15 var(--display); letter-spacing: -0.01em;
+  margin: 8px 0 16px; text-wrap: balance;
+}
+h2 .num { color: var(--muted); font-weight: 500; margin-right: 0.35em; font-variant-numeric: tabular-nums; }
+h3 { font: 700 19px/1.3 var(--display); margin: 28px 0 8px; text-wrap: balance; }
+p { margin: 0 0 14px; }
+ul, ol { margin: 0 0 14px; padding-left: 1.3em; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+a { color: var(--cold); }
+code, .mono { font-family: var(--mono); font-size: 0.82em; }
+code { background: var(--code); padding: 0.1em 0.35em; border-radius: 4px; }
+.hot { color: var(--hot); }
+.cold { color: var(--cold); }
+
+/* Formulas and callouts */
+.formula {
+  font: 15px/1.6 var(--mono);
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 0 0 16px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.note {
+  border-left: 3px solid var(--hot);
+  padding: 4px 0 4px 16px;
+  margin: 0 0 16px;
+  color: var(--muted);
+}
+
+/* Ratio list: equation, then what it means */
+dl.ratios { display: grid; gap: 10px; margin: 0 0 18px; }
+dl.ratios div { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 14px; }
+dl.ratios dt { font: 600 15px/1.5 var(--mono); overflow-x: auto; }
+dl.ratios dd { margin: 2px 0 0; font-size: 15px; color: var(--muted); }
+dl.ratios b { color: var(--ink); font-weight: 600; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 0 0 18px; }
+table { border-collapse: collapse; width: 100%; font: 14px/1.45 var(--display); font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+td.n, th.n { text-align: right; }
+td code { font-size: 0.9em; }
+
+/* Figures */
+figure { margin: 8px 0 22px; }
+figure svg { display: block; width: 100%; max-width: 100%; height: auto; }
+figcaption { font: 14px/1.5 var(--display); color: var(--muted); margin-top: 8px; }
+
+/* Step pipeline: a real sequence, so it is numbered */
+ol.pipeline { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 8px; counter-reset: step; }
+ol.pipeline li {
+  counter-increment: step;
+  display: grid; grid-template-columns: 2.2em minmax(0, 1fr); gap: 10px;
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 10px 14px; margin: 0;
+}
+ol.pipeline li::before {
+  content: counter(step); font: 700 15px/1.6 var(--display); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+ol.pipeline b { font: 600 15px/1.5 var(--display); display: block; }
+ol.pipeline span { font-size: 15px; color: var(--muted); }
+
+/* Multigrid ladder: bar widths are to scale (cell counts) */
+.ladder { display: grid; gap: 6px; margin: 0 0 18px; font: 13px/1 var(--mono); }
+.ladder div { display: grid; grid-template-columns: 6.5em 1fr; align-items: center; gap: 10px; }
+.ladder i { display: block; height: 14px; border-radius: 3px; background: var(--cold); opacity: 0.85; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 0 0 18px; }
+.card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; }
+.card b { display: block; font: 600 15px/1.4 var(--display); margin-bottom: 4px; }
+.card p { font-size: 15px; margin: 0; color: var(--muted); }
+
+footer { margin-top: 48px; font: 14px/1.5 var(--display); color: var(--muted); }
+a:focus-visible { outline: 2px solid var(--cold); outline-offset: 2px; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav class="toc" aria-label="Contents">
+  <a class="back" href="index.html">← Back to the simulation</a>
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#setup">What you are looking at</a></li>
+    <li><a href="#physics">The physics</a></li>
+    <li><a href="#numbers">The numbers that describe a fluid</a></li>
+    <li><a href="#step">One time step</a></li>
+    <li><a href="#pressure">Keeping the fluid incompressible</a></li>
+    <li><a href="#edges">Edges and plates</a></li>
+    <li><a href="#gpu">Running on the GPU</a></li>
+    <li><a href="#visuals">Visuals and interaction</a></li>
+    <li><a href="#checks">How we know it is right</a></li>
+    <li><a href="#history">What changed along the way</a></li>
+    <li><a href="#limits">Limits</a></li>
+    <li><a href="#code">Map of the code</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="title">
+  <p class="kicker">Project report · November 2026</p>
+  <h1>Convection Between Reservoirs</h1>
+  <p class="lede">A hot plate below a cold plate, in one fluid. Warm fluid rises, cool fluid sinks, and the two meet in plumes, rolls and swirls. This report explains the physics behind it, how the computer solves it 60 times a second on the graphics card, and how its accuracy was checked.</p>
+</header>
+
+<section id="setup">
+<h2><span class="num">1</span>What you are looking at</h2>
+<p>The picture is a vertical slice through a fluid, like air or water. Color shows temperature only: <span class="cold">blue is colder</span> than the surroundings, <span class="hot">orange is warmer</span>, and near-black is the surrounding (ambient) temperature. It is all one fluid; the plates are heat sources and sinks, not emitters of different fluids.</p>
+<figure>
+  <svg viewBox="0 0 600 410" role="img" aria-label="Diagram of the domain: a hot plate near the bottom, a cold plate near the top, open edges on all sides.">
+    <rect x="60" y="20" width="480" height="320" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <rect x="175" y="40" width="250" height="20" rx="2" fill="var(--cold)"/>
+    <text x="300" y="54" text-anchor="middle" font-family="var(--display)" font-size="13" fill="var(--paper)">cold plate, −1</text>
+    <rect x="175" y="300" width="250" height="20" rx="2" fill="var(--hot)"/>
+    <text x="300" y="314" text-anchor="middle" font-family="var(--display)" font-size="13" fill="var(--paper)">hot plate, +1</text>
+    <path d="M300 292 C 300 250, 330 230, 330 190" fill="none" stroke="var(--hot)" stroke-width="2.5"/>
+    <path d="M324 198 L330 186 L336 198" fill="none" stroke="var(--hot)" stroke-width="2.5"/>
+    <path d="M300 68 C 300 110, 270 130, 270 170" fill="none" stroke="var(--cold)" stroke-width="2.5"/>
+    <path d="M264 162 L270 174 L276 162" fill="none" stroke="var(--cold)" stroke-width="2.5"/>
+    <text x="345" y="214" font-family="var(--display)" font-size="13" fill="var(--hot)">warm fluid rises</text>
+    <text x="150" y="150" font-family="var(--display)" font-size="13" fill="var(--cold)">cool fluid sinks</text>
+    <text x="300" y="14" text-anchor="middle" font-family="var(--display)" font-size="12" fill="var(--muted)">open edge</text>
+    <text x="300" y="356" text-anchor="middle" font-family="var(--display)" font-size="12" fill="var(--muted)">open edge</text>
+    <text x="30" y="180" text-anchor="middle" font-family="var(--display)" font-size="12" fill="var(--muted)" transform="rotate(-90 30 180)">open edge / inlet</text>
+    <text x="570" y="180" text-anchor="middle" font-family="var(--display)" font-size="12" fill="var(--muted)" transform="rotate(90 570 180)">open edge</text>
+    <path d="M60 380 H540" stroke="var(--muted)" stroke-width="1"/>
+    <path d="M60 374 V386 M540 374 V386" stroke="var(--muted)" stroke-width="1"/>
+    <text x="300" y="402" text-anchor="middle" font-family="var(--mono)" font-size="12" fill="var(--muted)">width 1.5 · height 1 (domain units) · gravity points down</text>
+  </svg>
+  <figcaption>The setup is a mirror image top to bottom: each plate sits 2 of 48 rows from its edge. Flip the picture upside down and swap hot for cold, and you get the same problem.</figcaption>
+</figure>
+<p>Everything is measured in <strong>domain units</strong>: the domain is 1 unit tall and 1.5 wide, and temperature is 0 at ambient, +1 at the hot plate and −1 at the cold plate (both adjustable). Time is in simulation units; the default step is 0.02 (simulation speed 0.25×), and slow combinations such as the very viscous ones use a larger step.</p>
+</section>
+
+<section id="physics">
+<h2><span class="num">2</span>The physics</h2>
+<p>Three effects shape the flow, plus one rule.</p>
+<div class="cards">
+  <div class="card"><b>Buoyancy</b><p>Warm fluid is lighter and is pushed up; cool fluid is heavier and sinks. The push is proportional to how far the temperature is from ambient.</p></div>
+  <div class="card"><b>Viscosity</b><p>Internal friction. It smooths out the motion and damps small swirls.</p></div>
+  <div class="card"><b>Heat diffusion</b><p>Heat spreads from warm to cool even in still fluid, softening temperature edges.</p></div>
+  <div class="card"><b>Incompressibility</b><p>The rule: fluid can't pile up or thin out. Whatever flows into a region must flow out.</p></div>
+</div>
+<p>Written out, these are the 2D Navier–Stokes equations with the <strong>Boussinesq approximation</strong>, which treats density as constant except in the buoyancy term:</p>
+<div class="formula">∂u/∂t + (u·∇)u = −∇p + ν ∇²u + B·T·ŷ
+∇·u = 0
+∂T/∂t + (u·∇)T = κ ∇²T</div>
+<p>Here <code>u</code> is velocity, <code>p</code> pressure, <code>T</code> temperature, <code>ν</code> viscosity, <code>κ</code> heat diffusion and <code>B</code> buoyancy strength. These are the four sliders under the picture.</p>
+
+<h3>Why this setup convects</h3>
+<p>Hot below and cold above is unstable: heavy fluid sits on top of light fluid. If the push from buoyancy beats the damping from viscosity and heat diffusion, the fluid overturns. Their ratio is the <strong>Rayleigh number</strong>:</p>
+<div class="formula">Ra = B·ΔT·L³ / (ν·κ) = 1.7 × 2 × 0.79³ / (0.00035 × 0.0003) ≈ 1.6 × 10⁷</div>
+<p>With the default sliders, ΔT = 2 is the difference between the plates and L = 0.79 is the gap between their faces. Between two horizontal plates, convection starts at about Ra ≈ 1,700, so this flow is far past the onset, in the range where real convection is turbulent with thin plumes and large rolls. The <strong>Prandtl number</strong> ν/κ ≈ 1.2 sits between air (0.7) and water (7), so momentum and heat spread at similar rates.</p>
+<p>What to watch for, all of which real convection shows:</p>
+<ul>
+  <li><strong>Plumes with mushroom caps</strong> peeling off the plates, where the thin heated or cooled layer on each plate becomes unstable.</li>
+  <li><strong>A large circulating roll</strong> that fills the space between the plates and picks a direction (clockwise or counterclockwise) by chance. Different runs lean different ways.</li>
+  <li><strong>Gravity currents:</strong> cold fluid spilling off the cold plate's ends and sliding down, and warm fluid climbing past the hot plate's ends.</li>
+</ul>
+<h3>The controls</h3>
+<p>The <strong>Fluid</strong> controls work in two modes. With <strong>Dimensionless: OFF</strong> you set the fluid's properties (buoyancy, viscosity, thermal diffusion). With <strong>Dimensionless: ON</strong> you set Ra and Pr directly, and viscosity and thermal diffusion follow from them (section 3 explains why that is enough). The Pr slider can snap to real substances, and always names the substance it matches or the two it falls between.</p>
+<p>Each control has a <strong>reasonable</strong> range, where the simulation can be trusted, and a wider <strong>extreme</strong> range for seeing what happens beyond it; the green <em>Reasonable min/max</em> button switches to red <em>Extreme min/max</em>. Some combinations leave the reasonable region even inside the reasonable ranges, so a chip on the flow numbers says when the current settings are outside it, and why.</p>
+<p>Below the controls, the <strong>Flow numbers</strong> panel shows Ra, Pr, the measured Re and Ri. Each tile gives the value, what it predicts, a one-sentence plain definition, and the ratio drawn as a fraction (section 3 explains them all), and a chip at the top says whether the current settings are within the reasonable range.</p>
+<p><strong>Surprise me</strong> applies a random combination from a list of known interesting ones (turbulent air, water plumes, steady rolls, liquid metal, olive oil, crosswind, strong wind, narrow and wide plates, a hot floor, and two found by playing with the page: "Seemingly balanced?" and "Diagonal divide"), <strong>All defaults</strong> puts every control back, and <strong>Copy settings</strong> copies the current combination as one line of text, which is how new combinations get added to the list.</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Control</th><th>Reasonable</th><th>Extreme</th><th>What limits it</th></tr></thead>
+  <tbody>
+    <tr><td>Rayleigh number</td><td>10² – 3 × 10⁷</td><td>10 – 10¹⁰</td><td>Above 3 × 10⁷ the thin layers on the plates are thinner than a grid cell</td></tr>
+    <tr><td>Prandtl number</td><td>0.01 – 1,000</td><td>0.001 – 10⁵</td><td>Range tested; very viscous fluids also need more solver work than a step allows</td></tr>
+    <tr><td>Buoyancy</td><td>0.05 – 5</td><td>0.005 – 50</td><td>Faster flows move many cells per step</td></tr>
+    <tr><td>Viscosity</td><td>10⁻⁶ – 0.03</td><td>10⁻⁷ – 0.3</td><td>Strong viscosity is only partly solved each step</td></tr>
+    <tr><td>Thermal diffusion</td><td>10⁻⁶ – 0.006</td><td>10⁻⁷ – 0.05</td><td>Same, for heat</td></tr>
+    <tr><td>Plate temperatures</td><td>±0.05 – ±1.5</td><td>±0.01 – ±5</td><td>Range tested</td></tr>
+    <tr><td>Free stream</td><td>0 – 1.5</td><td>0 – 5</td><td>Range tested</td></tr>
+    <tr><td>Plate width</td><td>0.1 – 0.9</td><td>0.03 – 0.97</td><td>Very narrow plates are only a few cells wide</td></tr>
+    <tr><td>Simulation speed</td><td>0.25× – 2×</td><td>0.05× – 5×</td><td>Range tested (time step 0.02 – 0.16)</td></tr>
+  </tbody>
+</table></div>
+<p class="note">Thermal boundary layers at this Rayleigh number are roughly L·Ra<sup>−1/3</sup> ≈ 0.003 units thick, about one temperature cell. They are right at the resolution limit, which is why the finest structure depends on grid size.</p>
+</section>
+
+<section id="numbers">
+<h2><span class="num">3</span>The numbers that describe a fluid</h2>
+<p>A handful of ratios decide how a fluid flow behaves. Two flows with the same ratios look the same, just larger or smaller, faster or slower; this is called <strong>dynamic similarity</strong>, and it is why wind tunnels and small tanks can stand in for aircraft and oceans.</p>
+
+<h3>The ingredients</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Symbol</th><th>Name</th><th>Units</th><th>In this simulation</th></tr></thead>
+  <tbody>
+    <tr><td><code>L</code></td><td>length scale</td><td>m</td><td>gap between the plate faces, 0.79</td></tr>
+    <tr><td><code>ΔT</code></td><td>temperature difference</td><td>K</td><td>hot plate minus cold plate (default 2)</td></tr>
+    <tr><td><code>g</code></td><td>gravitational acceleration</td><td>m/s²</td><td rowspan="2">combined as the <strong>Buoyancy</strong> slider <code>B = gβ</code> (default 1.7)</td></tr>
+    <tr><td><code>β</code></td><td>thermal expansion coefficient (how much density drops per degree)</td><td>1/K</td></tr>
+    <tr><td><code>ν</code></td><td>kinematic viscosity: how fast momentum spreads</td><td>m²/s</td><td><strong>Viscosity</strong> slider (default 0.00035)</td></tr>
+    <tr><td><code>κ</code></td><td>thermal diffusivity: how fast heat spreads</td><td>m²/s</td><td><strong>Thermal diffusion</strong> slider (default 0.0003)</td></tr>
+    <tr><td><code>U</code></td><td>typical flow speed</td><td>m/s</td><td>measured: root-mean-square speed over the domain</td></tr>
+    <tr><td><code>U∞</code></td><td>free-stream speed</td><td>m/s</td><td><strong>Free stream</strong> slider</td></tr>
+  </tbody>
+</table></div>
+<p>The simulation works in its own units (the domain is 1 tall), so its sliders have no physical units, but every ratio below is a pure number and means the same as in a real fluid.</p>
+
+<h3>The ratios</h3>
+<dl class="ratios">
+  <div><dt>Ra = g β ΔT L³ / (ν κ)</dt><dd><b>Rayleigh:</b> buoyancy / (viscous diffusion × thermal diffusion)</dd></div>
+  <div><dt>Pr = ν / κ</dt><dd><b>Prandtl:</b> momentum diffusivity / thermal diffusivity</dd></div>
+  <div><dt>Gr = g β ΔT L³ / ν² = Ra / Pr</dt><dd><b>Grashof:</b> buoyancy / viscous forces</dd></div>
+  <div><dt>Re = U L / ν</dt><dd><b>Reynolds:</b> inertial forces / viscous forces</dd></div>
+  <div><dt>Ri = g β ΔT L / U∞² = Gr / Re∞²</dt><dd><b>Richardson:</b> buoyancy / inertia of the stream</dd></div>
+  <div><dt>Pe = U L / κ = Re · Pr</dt><dd><b>Péclet:</b> heat carried by the flow / heat diffused</dd></div>
+</dl>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>Number</th><th>What it tells you</th><th>Rough bands</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Ra</strong></td><td>Whether the fluid overturns at all, and how violently. The single most important number for convection.</td><td>below ~1,700: still · to ~5 × 10⁴: steady rolls · to ~10⁶: unsteady plumes · above: turbulent</td></tr>
+    <tr><td><strong>Pr</strong></td><td>A property of the fluid alone. Low Pr: heat spreads much faster than motion (thick thermal layers, thin velocity layers). High Pr: the reverse.</td><td>liquid metals ≪ 1 · gases ≈ 1 · water ≈ 7 · oils and syrups ≫ 100</td></tr>
+    <tr><td><strong>Gr</strong></td><td>Ra without the heat part: buoyancy against friction alone. Its square root estimates the Reynolds number buoyancy can drive: <code>Re ≈ √Gr = √(Ra/Pr)</code>.</td><td>shown via Ra and Pr</td></tr>
+    <tr><td><strong>Re</strong></td><td>How the flow actually moves: syrupy and orderly at low Re, swirling and chaotic at high Re. Here it is <em>measured</em> from the flow, so it shows the result, where Ra shows the cause.</td><td>below 1: creeping · to ~100: orderly · to ~2,000: unsteady · above: turbulent-like</td></tr>
+    <tr><td><strong>Ri</strong></td><td>With a free stream: whether buoyancy or the stream wins.</td><td>above 10: natural convection · 0.1–10: mixed · below 0.1: forced convection</td></tr>
+    <tr><td><strong>Pe</strong></td><td>Whether moving fluid or diffusion does more of the heat transport.</td><td>above 1: carried by the flow</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Substances</h3>
+<p>The Prandtl number is the one ratio set by the fluid alone, so it is how the simulation stands in for a real substance. Values are at room temperature unless noted, and change with temperature (honey's a lot).</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Substance</th><th class="n">Pr</th><th>In the simulation</th></tr></thead>
+  <tbody>
+    <tr><td>Liquid sodium (molten, used to cool reactors)</td><td class="n">0.005</td><td>extended range</td></tr>
+    <tr><td>Mercury</td><td class="n">0.025</td><td>accurate</td></tr>
+    <tr><td>Air</td><td class="n">0.71</td><td>accurate</td></tr>
+    <tr><td>Water</td><td class="n">7</td><td>accurate</td></tr>
+    <tr><td>Olive oil</td><td class="n">≈ 1,000</td><td>accurate at high Ra</td></tr>
+    <tr><td>Glycerin</td><td class="n">≈ 12,000</td><td>extended range</td></tr>
+    <tr><td>Honey</td><td class="n">≈ 30,000</td><td>extended range</td></tr>
+  </tbody>
+</table></div>
+<p class="note">Why setting Ra and Pr is enough: once they are fixed, changing buoyancy or the plate temperatures only changes the flow's speed scale, the free-fall velocity <code>√(gβΔT·L)</code>, so the same flow plays faster or slower. In Dimensionless mode the simulation keeps Ra and Pr fixed and works out ν and κ from them. At low Ra that would need diffusion too strong to solve in one time step, so it lowers the buoyancy instead: the same flow, only slower, which is what a low Rayleigh number means in a box this size.</p>
+</section>
+
+<section id="step">
+<h2><span class="num">4</span>One time step</h2>
+<p>The simulation splits the equations into simple pieces and applies them one after another, 60 times a second. This approach, operator splitting with a pressure projection, follows Jos Stam's "Stable Fluids" method, which is the standard choice for interactive fluids.</p>
+<ol class="pipeline">
+  <li><div><b>Apply the edges</b><span>Set the plates and the domain edges to their rules (section 6).</span></div></li>
+  <li><div><b>Buoyancy</b><span>Add B·T·dt to the vertical velocity of every fluid cell.</span></div></li>
+  <li><div><b>Viscosity</b><span>Smooth the velocity by solving the implicit diffusion equation.</span></div></li>
+  <li><div><b>Make it incompressible</b><span>Remove any part of the flow that piles up or thins out (section 5).</span></div></li>
+  <li><div><b>Move the velocity along itself</b><span>Advection: the flow carries its own momentum.</span></div></li>
+  <li><div><b>Make it incompressible again</b><span>Advection breaks the rule slightly, so it is restored.</span></div></li>
+  <li><div><b>Heat diffusion</b><span>Spread temperature, with the plates held at their set values.</span></div></li>
+  <li><div><b>Move the heat</b><span>Advect temperature with the corrected velocity.</span></div></li>
+  <li><div><b>Apply the edges again, then the extras</b><span>Edges and plates, then the tracer particles if they are on.</span></div></li>
+</ol>
+
+<h3>Two grids</h3>
+<p>Velocity and pressure live on a <strong>288 × 192</strong> grid. Temperature lives on a grid twice as fine, <strong>576 × 384</strong>, because temperature is what you see, while the expensive pressure solve stays on the coarser grid. Advection samples the velocity smoothly at the finer cells, and buoyancy uses each velocity cell's average of its four temperature cells.</p>
+
+<h3>Advection: looking backwards</h3>
+<p>To find what arrives at a cell, the solver follows the flow <em>backwards</em> one step and reads the value it finds there, blending the four nearest cells. This "semi-Lagrangian" method stays stable at any speed, but each blend blurs a little.</p>
+<p>A <strong>MacCormack correction</strong> fixes most of the blur: it runs the step forwards, then backwards, measures how far it failed to get back to the start, and adds half that error back. The result is clamped to the values it came from, so the correction can never create new hot or cold extremes. This is what keeps plumes thin enough to roll up into mushroom caps.</p>
+
+<h3>Diffusion: red-black over-relaxation</h3>
+<p>Diffusion is solved implicitly, which stays stable at any step size:</p>
+<div class="formula">(1 − α∇²) x_new = x_old,   α = diffusivity · dt / h²</div>
+<p>The solver colors the cells like a checkerboard and updates the red cells, then the black ones, so each update already uses its neighbors' new values (Gauss–Seidel). Each update also overshoots slightly toward the answer (over-relaxation, by a factor of 1.2 to 1.8 depending on α). It runs at least 8 sweeps, and more when diffusion is strong: <code>max(8, 5·√α)</code>. Plate cells are skipped, so the fluid next to a plate always sees the plate's set temperature, and zero velocity.</p>
+</section>
+
+<section id="pressure">
+<h2><span class="num">5</span>Keeping the fluid incompressible</h2>
+<p>Every step leaves some places where fluid would pile up or thin out (nonzero <em>divergence</em>). The fix is a pressure field: high pressure pushes fluid away from where it piles up. Finding that pressure means solving a Poisson equation, then subtracting the pressure's slope from the velocity:</p>
+<div class="formula">∇²p = ∇·u        u ← u − ∇p</div>
+<p>This is by far the most expensive part, and how it is solved shapes the whole picture.</p>
+
+<h3>Why multigrid</h3>
+<p>The simple method, Jacobi iteration, sets each cell's pressure to the average of its neighbors plus a correction. Each pass spreads information only <strong>one cell</strong>, so a pressure change that must reach across 288 cells needs thousands of passes. With an affordable 20–40 passes, the flow stayed in stiff vertical columns, because the domain-wide circulation never got established.</p>
+<p><strong>Multigrid</strong> solves on a stack of smaller and smaller copies of the grid. An error that is 100 cells wide on the full grid is only a few cells wide on a small grid, where Jacobi fixes it quickly. Each <em>V-cycle</em> smooths a little, hands the leftover error down a level, solves the tiny grid, and adds the corrections back up:</p>
+<div class="ladder" aria-label="Multigrid levels, bar widths to scale">
+  <div><span>288 × 192</span><i style="width:100%"></i></div>
+  <div><span>144 × 96</span><i style="width:50%"></i></div>
+  <div><span>72 × 48</span><i style="width:25%"></i></div>
+  <div><span>36 × 24</span><i style="width:12.5%"></i></div>
+  <div><span>18 × 12</span><i style="width:6.25%"></i></div>
+  <div><span>9 × 6</span><i style="width:3.125%"></i></div>
+</div>
+<p>Two V-cycles per projection cost less than the old 40 Jacobi passes and match a 300-pass Jacobi reference. That is what lets large rolls, floor-hugging currents and plumes that curl over appear.</p>
+
+<h3>Details that turned out to matter</h3>
+<ul>
+  <li><strong>Plates are solid in the solve.</strong> Pressure has no slope across a plate face, so nothing pushes fluid into a plate. Before this, 89% of the leftover divergence sat next to the plates.</li>
+  <li><strong>Coarse plates must stay symmetric.</strong> On small grids the plate edges fall in the middle of cells. A coarse cell now counts as solid only if it lies entirely inside the plate. An earlier rule made the coarse hot plate thinner than the cold one, which tilted every pressure solve and made the whole flow run cold.</li>
+  <li><strong>The smallest grid needs 40 passes.</strong> The 9 × 6 grid carries the single domain-wide pressure mode, which decides how much fluid enters or leaves through the edges. Cutting it to 8 passes looked harmless in a one-step test, but over hundreds of steps cold fluid flooded the domain.</li>
+  <li><strong>Edge strips are not dropped.</strong> A coarse edge cell covers a strip of real fine cells, so their leftover error is folded into the neighboring interior cell instead of being thrown away.</li>
+</ul>
+</section>
+
+<section id="edges">
+<h2><span class="num">6</span>Edges and plates</h2>
+<p>All four edges are <strong>open</strong> to ambient surroundings and treated the same way:</p>
+<ul>
+  <li>fluid can flow in or out anywhere;</li>
+  <li>fluid flowing <em>in</em> arrives at ambient temperature, and fluid flowing <em>out</em> keeps its own;</li>
+  <li>pressure is zero at the edges.</li>
+</ul>
+<p>With a <strong>free stream</strong>, the left edge becomes a fixed inlet blowing ambient fluid to the right, and the plates leave wakes downstream.</p>
+<p>The plates are <strong>solid, no-slip and held at fixed temperature</strong>. Their temperature flickers by ±3%, varying along the plate and from step to step, with a new random pattern every reset. Real surfaces are never perfectly uniform, and these small differences are what break the thin boundary layers into separate plumes. Without them a perfectly symmetric start stays perfectly symmetric.</p>
+<p class="note">The original sketch had a floor held at ambient temperature, a top that only let fluid out, and sides held at ambient. That made the top run cold and the bottom neutral, because cold fluid near the top had nowhere to go while the floor pulled the bottom back to ambient. Those edges are still available in the code as <code>boundaries: 'original'</code>.</p>
+</section>
+
+<section id="gpu">
+<h2><span class="num">7</span>Running on the GPU</h2>
+<p>The original sketch ran on the CPU in JavaScript at 72 × 48. The professor's feedback pointed to shaders as the way to much higher resolution, and that is the structure now:</p>
+<ul>
+  <li>Each field (velocity, temperature, pressure) is a <strong>float texture</strong>, one texel per grid cell.</li>
+  <li>Each step of the method is a small <strong>fragment shader</strong> that runs once for every cell at the same time, reading one texture and writing another.</li>
+  <li>A GPU can't read and write the same texture in one pass, so each field has a read copy and a write copy that swap after every pass (<em>ping-pong</em>).</li>
+</ul>
+<div class="table-wrap"><table>
+  <thead><tr><th>Measure</th><th class="n">Value</th></tr></thead>
+  <tbody>
+    <tr><td>Cells (velocity / temperature)</td><td class="n">55,296 / 221,184</td></tr>
+    <tr><td>Shader passes per step</td><td class="n">about 370</td></tr>
+    <tr><td>Fixed cost per pass</td><td class="n">about 13 µs</td></tr>
+    <tr><td>Step time, Intel laptop GPU (power-saver)</td><td class="n">3.5–4 ms</td></tr>
+    <tr><td>Frame rate, everything on</td><td class="n">about 55–60 fps</td></tr>
+  </tbody>
+</table></div>
+<p>Most of the cost is the <em>number</em> of passes, not the data each moves: cutting texture channels from four to the one or two each field needs saved only about 5%. That is why the pressure and diffusion solvers were chosen for converging in few passes.</p>
+</section>
+
+<section id="visuals">
+<h2><span class="num">8</span>Visuals and interaction</h2>
+<h3>Color</h3>
+<p>The display shader samples the fine temperature grid smoothly and maps it through five colors you can pick yourself: max cold, cold, middle (ambient), hot and max hot. Each half of the bar blends linearly through its three colors, and <strong>Average mids</strong> sets cold and hot halfway between their neighbors. The color bar in the side panel is drawn with the same stops, so it always matches the picture.</p>
+<h3>Flow tracers</h3>
+<p>2,048 particles ride the flow. Each lives in one texel of a texture holding its position, age and lifetime, and a shader moves it with a midpoint (RK2) step. Every step draws a short line from where each particle was to where it is, into a streak layer that fades over about half a time unit. A particle respawns at a random spot when it gets old, leaves the domain or hits a plate; with a free stream, some are born at the inlet so incoming flow is traced too.</p>
+<h3>The brush</h3>
+<p>Dragging in the fluid paints warm fluid, and the <strong>Mouse</strong> button (or M) switches to cool; the button takes the color it paints. The brush eases the fluid under a soft round patch toward the hot or cold plate temperature instead of adding heat, so going over the same spot can never overshoot.</p>
+<h3>Layout</h3>
+<p>From top to bottom, the page has:</p>
+<ul>
+  <li>a bar with the link to this report;</li>
+  <li>the simulation, with a side panel for the free stream, the plate temperatures and the fluid temperature colors;</li>
+  <li>the controls in two columns. On the left, <strong>Fluid</strong> (with the Dimensionless and Reasonable/Extreme min/max buttons) and, under it, <strong>Meta controls</strong> (Pause, Restart, Mouse, Labels, Tracers, simulation speed and the frame rate). On the right, <strong>Setup</strong> (plate width, free stream) and <strong>Combinations</strong>. Each slider shows its value and a one-line hint;</li>
+  <li>the <strong>Flow numbers</strong> panel.</li>
+</ul>
+<p>The simulation keeps its 3:2 shape and resizes with the window; the side panel sits beside it on wide screens and below it on phones, and the control blocks and number tiles rearrange to fit. The color picker is part of the page, rather than the browser's own, so it always opens on screen. Your colors are remembered in your browser.</p>
+</section>
+
+<section id="checks">
+<h2><span class="num">9</span>How we know it is right</h2>
+<h3>The mirror test</h3>
+<p>The physics is exactly symmetric under a top-to-bottom flip with hot and cold swapped (and under a left-to-right flip). So a developed flow and its mirror image must stay mirror images through every step. Running each stage on both and comparing pinpoints any stage that breaks the symmetry.</p>
+<p>It found the coarse-plate bug: a 1.9% mirror error per step in the pressure solve, now 0.0003% (rounding). It passes across grid sizes, plate widths and temperatures, the free stream, both brush tools, both pressure solvers, both advection schemes and both edge modes. The one asymmetry left is the checkerboard order in diffusion, about 0.01% per step, far below anything visible.</p>
+
+<h3>Textbook checks</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Check</th><th>Expected</th><th>Measured</th></tr></thead>
+  <tbody>
+    <tr><td>Blob carried by a uniform flow</td><td>moves 0.4080</td><td>0.4080</td></tr>
+    <tr><td>Divergence-free swirl through the projection</td><td>unchanged</td><td>0.000% change</td></tr>
+    <tr><td>Divergent field through the projection</td><td>cleaned up</td><td>33× smaller</td></tr>
+    <tr><td>Blob spreading by diffusion</td><td>variance +2κt, heat kept</td><td>99%, heat kept</td></tr>
+    <tr><td>Mean temperature from a symmetric start</td><td>stays 0</td><td>≈ 0 (was −0.03)</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Grid convergence</h3>
+<p>A correct solver gives averages that change smoothly and level off as the grid gets finer. Time-averaged over several runs:</p>
+<div class="table-wrap"><table>
+  <thead><tr><th>Grid</th><th class="n">144 × 96</th><th class="n">216 × 144</th><th class="n">288 × 192</th><th class="n">432 × 288</th></tr></thead>
+  <tbody>
+    <tr><td>Mean |temperature|</td><td class="n">0.200</td><td class="n">0.180</td><td class="n">0.178</td><td class="n">0.173</td></tr>
+    <tr><td>Mean speed</td><td class="n">0.30</td><td class="n">0.32</td><td class="n">0.33</td><td class="n">0.34</td></tr>
+  </tbody>
+</table></div>
+<p>Before the audit, mean |temperature| on the three finer grids jumped around (0.196, 0.149, 0.173), because of the plate bug in section 10. Changing the time step from 0.024 to 0.12 stays within the run-to-run spread of about ±20%, which comes from the flow being chaotic.</p>
+</section>
+
+<section id="history">
+<h2><span class="num">10</span>What changed along the way</h2>
+<h3>From class sketch to GPU</h3>
+<ul>
+  <li><strong>CPU original:</strong> 72 × 48 grid, 7 pressure passes, 2 diffusion passes, an optional one-time ripple to break symmetry.</li>
+  <li><strong>GPU port:</strong> same method, 16× the cells.</li>
+  <li><strong>Realism work:</strong> solid plates in the pressure solve, multigrid, MacCormack advection, plate flickers.</li>
+  <li><strong>Features:</strong> flow tracers, plate labels and color bar, the brush, the finer temperature grid, custom colors, responsive layout.</li>
+</ul>
+<h3>Bugs found and fixed</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Bug</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td>Plates not held fixed inside the diffusion and buoyancy steps</td><td>Plate temperature sagged during each step, so the plates drove the flow too weakly (flow speed rose about a third once fixed); results varied with grid size</td></tr>
+    <tr><td>Asymmetric coarse-grid plate test</td><td>The whole flow ran cold</td></tr>
+    <tr><td>Floor at ambient, one-way top</td><td>Top cold, bottom neutral</td></tr>
+    <tr><td>Fixed noise seed</td><td>Every reset replayed the same flow, which leaned right</td></tr>
+    <tr><td>Too few coarse-grid passes</td><td>Cold fluid slowly flooded the domain</td></tr>
+    <tr><td>Fixed diffusion sweep count</td><td>Strong diffusion spread only 61% as fast as it should</td></tr>
+    <tr><td>Divergence readout units</td><td>Shown 96× too small</td></tr>
+  </tbody>
+</table></div>
+<h3>Ideas tried and dropped</h3>
+<ul>
+  <li><strong>Reusing last step's pressure</strong> as a starting guess made the edges worse.</li>
+  <li><strong>A zoomed color range</strong> was replaced by choosing the colors directly.</li>
+  <li><strong>Relief shading, a stir brush and the "one fluid" caption</strong> were removed to keep the page focused.</li>
+</ul>
+<p class="note">A lesson from the finer temperature grid. In the project this idea came from, the fine field was passive dye, which just gets carried along. Here temperature drives the flow, and detail much finer than the velocity grid can't push the fluid itself; it gets wound up passively into a marbled look. Turning heat diffusion down too far makes that worse, so the default (0.0003) was chosen by eye as a balance between sharp plumes and that marbling.</p>
+</section>
+
+<section id="limits">
+<h2><span class="num">11</span>Limits</h2>
+<ul>
+  <li><strong>2D.</strong> Real convection is 3D; 2D flows hold on to large swirls longer.</li>
+  <li><strong>No turbulence model.</strong> At Ra ≈ 10⁷ the thinnest layers are about one cell thick, so the smallest details depend on grid size.</li>
+  <li><strong>Boussinesq.</strong> Valid for modest temperature differences, where density changes only matter for buoyancy.</li>
+  <li><strong>Chaotic.</strong> Two runs never match in detail, so compare averages over time or over runs, not single frames.</li>
+  <li><strong>Not a validated engineering solver.</strong> It is checked for symmetry, conservation, textbook cases and convergence, not against laboratory data.</li>
+</ul>
+</section>
+
+<section id="code">
+<h2><span class="num">12</span>Map of the code</h2>
+<div class="table-wrap"><table>
+  <thead><tr><th>File</th><th>What it holds</th></tr></thead>
+  <tbody>
+    <tr><td><code>fluid.js</code></td><td>The solver. <code>FLUID_DEFAULTS</code> (every setting, with comments), the shaders and the <code>FluidSolver</code> class.</td></tr>
+    <tr><td><code>sketch.js</code></td><td>The p5.js side: frame loop, layout, controls, side panel, color picker, plate drawing and labels, brush input.</td></tr>
+    <tr><td><code>style.css</code></td><td>All styling; colors are tokens at the top.</td></tr>
+    <tr><td><code>index.html</code> / <code>artifact.html</code></td><td>The page for running locally / the published page. Same files.</td></tr>
+    <tr><td><code>README.md</code></td><td>History, measurements and the audit log.</td></tr>
+  </tbody>
+</table></div>
+<h3>Inside <code>fluid.js</code></h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Name</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td><code>step()</code></td><td>One time step, in the order of section 4.</td></tr>
+    <tr><td><code>buoyancy</code></td><td>Shader: B·T·dt on vertical velocity.</td></tr>
+    <tr><td><code>diffuse</code>, <code>diffuse()</code></td><td>Red-black SOR half-sweep; sweep count from α.</td></tr>
+    <tr><td><code>advect</code>, <code>maccormack</code></td><td>Backwards tracing, then the error correction.</td></tr>
+    <tr><td><code>project()</code>, <code>vCycle()</code></td><td>Divergence, multigrid pressure, gradient subtraction.</td></tr>
+    <tr><td><code>pressureSmooth</code>, <code>pressureResidual</code>, <code>restrict</code>, <code>prolong</code></td><td>The four multigrid shaders.</td></tr>
+    <tr><td><code>velocityBoundary</code>, <code>temperatureBoundary</code></td><td>Edges, inlet and plates (with their flicker).</td></tr>
+    <tr><td><code>display</code></td><td>Temperature to color, plus tracer streaks.</td></tr>
+    <tr><td><code>tracerUpdate</code>, <code>stepTracers()</code></td><td>Moving and drawing the tracer particles.</td></tr>
+    <tr><td><code>applyBrush()</code></td><td>The heat/cool brush.</td></tr>
+    <tr><td><code>runPass()</code></td><td>Runs any shader over a grid: binds textures, sets settings, swaps read and write copies.</td></tr>
+  </tbody>
+</table></div>
+</section>
+
+<footer>
+  <p>Built in p5.js 2.3.4 and WebGL2. Started as a class assignment in October 2026, then rebuilt for the GPU, audited and extended. <a href="index.html">Back to the simulation</a>.</p>
+</footer>
+</main>
+</div>
+</body>
+</html>

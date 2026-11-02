@@ -1,0 +1,626 @@
+/* A dark instrument panel around a thermal display, in one deliberate dark
+   look (a thermal image reads best on dark): every color is a token here. */
+:root {
+  --page: #111;          /* page background */
+  --panel: #121212;      /* side panel */
+  --raised: #1c1c1c;     /* color picker */
+  --control: #222;       /* small buttons */
+  --ink: #fff;           /* main text, arrow, big buttons */
+  --ink-soft: #ddd;      /* notes, descriptions */
+  --ink-muted: #a0a0a0;  /* diagnostics */
+  --ink-dim: #ccc;       /* slider end labels */
+  --line: #555;          /* control borders */
+  --rule: #444;          /* divider */
+  --button-ink: #111;    /* text on the white buttons */
+  --focus: #6af;         /* keyboard focus ring */
+  --link: #8cc4ff;       /* links */
+  --block: #171717;      /* control blocks */
+  --ok: #7fd1a0;         /* within the reasonable range */
+  --warn: #f2b45a;       /* outside the reasonable range */
+  --reasonable: #bfe8c9; /* Reasonable min/max button (light green) */
+  --extreme: #f5b9b9;    /* Extreme min/max button (light red) */
+  --pill: #24303a;       /* regime pills */
+  --shadow: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+html, body {
+  margin: 0;
+}
+/* Elements hidden with the hidden attribute stay hidden even when a class
+   gives them a display value (grid, flex). */
+[hidden] {
+  display: none !important;
+}
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, sans-serif;
+}
+canvas {
+  display: block;
+}
+
+/* Page layout: simulation + side panel on top, controls below. In a wide
+   window the side panel sits beside the simulation; in a narrow one
+   (class "narrow", set by sketch.js) it goes underneath. */
+.app {
+  box-sizing: border-box;
+  padding-block: 12px;
+  padding-inline: 16px;
+}
+.top {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.app.narrow .top {
+  flex-direction: column;
+}
+
+/* WebGL simulation canvas with the p5 overlay canvas layered on top */
+.stage {
+  position: relative;
+  flex: none;
+}
+.stage canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  touch-action: none; /* dragging in the fluid stirs instead of scrolling */
+}
+.stage .error {
+  position: absolute;
+  inset: 0;
+  padding: 24px;
+}
+
+/* ---- Side panel ---- */
+.side-panel {
+  box-sizing: border-box;
+  width: 190px;
+  flex: none;
+  padding: 4px 4px 0;
+  background: var(--panel);
+  font-size: 12px;
+}
+.app.narrow .side-panel {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 16px;
+}
+.panel-section {
+  padding: 10px 12px;
+}
+.panel-section h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.centered {
+  text-align: center;
+}
+.note {
+  color: var(--ink-soft);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* Free stream arrow: length shows U∞, a short tick when there is none */
+.arrow-track {
+  height: 16px;
+  margin: 8px 0;
+  display: flex;
+  align-items: center;
+}
+.arrow {
+  position: relative;
+  height: 3px;
+  background: var(--ink);
+}
+.arrow::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: -5px;
+  border-left: 9px solid var(--ink);
+  border-top: 6.5px solid transparent;
+  border-bottom: 6.5px solid transparent;
+}
+.arrow.off {
+  width: 2px !important;
+  height: 14px;
+}
+.arrow.off::after {
+  display: none;
+}
+
+/* Plate temperature sliders */
+.plate-label {
+  margin-top: 6px;
+  font-weight: 700;
+  white-space: pre;
+}
+.plate-slider {
+  width: 100%;
+  margin: 6px 0 2px;
+}
+.range-ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-dim);
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+/* Fluid temperature color bar with a color picker under each palette color */
+.color-bar {
+  position: relative;
+  height: 12px;
+  border: 1px solid var(--line);
+}
+.ambient-tick {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 1px;
+  background: var(--ink);
+}
+.swatch-row {
+  position: relative;
+  height: 20px;
+  margin: 4px 8px 0; /* keeps the end swatches inside the panel */
+}
+.palette-swatch {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid var(--ink-soft);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.palette-swatch:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Color picker popover: positioned by sketch.js to stay inside the window */
+.color-popover {
+  position: fixed;
+  z-index: 10;
+  box-sizing: border-box;
+  width: 200px;
+  padding: 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--shadow);
+  font-size: 12px;
+}
+.popover-title {
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.sv-square {
+  display: block;
+  width: 180px;
+  height: 120px;
+  border-radius: 4px;
+  cursor: crosshair;
+  touch-action: none;
+}
+.hue-slider {
+  width: 100%;
+  height: 12px;
+  margin: 10px 0;
+  border-radius: 6px;
+  appearance: none;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.hue-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--control);
+  cursor: pointer;
+}
+.hue-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--control);
+  cursor: pointer;
+}
+.popover-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.popover-preview {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--ink-soft);
+}
+.hex-input {
+  width: 0;
+  flex: 1;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--page);
+  color: var(--ink);
+  font: 12px ui-monospace, monospace;
+}
+.bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--ink-dim);
+  font-size: 10px;
+}
+.palette-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.small-button {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--control);
+  color: var(--ink-soft);
+  font: 12px system-ui, sans-serif;
+  cursor: pointer;
+}
+.diagnostics {
+  color: var(--ink-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* ---- Controls under the simulation ---- */
+.controls {
+  margin-top: 14px;
+  font-size: 14px;
+  display: grid;
+  gap: 12px;
+}
+.control-block {
+  min-width: 0;
+  background: var(--block);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 14px 16px 16px;
+}
+.block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+.block-head h3 {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.block-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.block-buttons .control-button {
+  padding: 4px 8px;
+}
+.block-note {
+  margin-top: 12px;
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Fluid, Setup and Combinations side by side when there is room */
+.control-blocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.block-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* ---- Flow numbers: the main readout ---- */
+.number-tiles {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+/* 1, 2 or 4 across, never 3 + 1 */
+@media (min-width: 560px) {
+  .number-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1100px) {
+  .number-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.number-tile {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--page);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.tile-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.tile-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+.tile-tag {
+  font-size: 11px;
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 7px;
+}
+.tile-value {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.tile-note {
+  align-self: flex-start;
+  background: var(--pill);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.tile-layman {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+/* The ratio, drawn as a real fraction */
+.tile-ratio {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.ratio-symbol {
+  flex: none;
+}
+.ratio-symbol {
+  font-weight: 700;
+}
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  text-align: center;
+  line-height: 1.35;
+}
+.frac > span:first-child {
+  padding: 0 6px 3px;
+  border-bottom: 1.5px solid var(--ink);
+}
+.frac > span:last-child {
+  padding: 3px 6px 0;
+}
+.frac-tail {
+  font-style: italic;
+}
+.accuracy-chip {
+  padding: 3px 12px;
+  border: 1px solid var(--ok);
+  border-radius: 999px;
+  color: var(--ok);
+  font-size: 12px;
+  font-weight: 700;
+}
+.accuracy-chip.warn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.accuracy-detail {
+  margin-top: 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---- Slider rows: name, slider, value, then a one-line hint ---- */
+.control-list {
+  display: grid;
+  gap: 14px;
+}
+.control {
+  display: grid;
+  grid-template-columns: 9.5em minmax(0, 1fr) 6.5em; /* names line up, so sliders do */
+  align-items: center;
+  gap: 4px 10px;
+}
+.control-name {
+  font-weight: 600;
+}
+.control-slider {
+  width: 100%;
+  margin: 0;
+}
+.control-value {
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.control-hint {
+  grid-column: 1 / -1;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+.pr-extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.substance {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Range button: light green for reasonable limits, light red for extremes */
+.control-button.range-button {
+  background: var(--reasonable);
+  border-color: var(--reasonable);
+  color: var(--button-ink);
+}
+.control-button.range-button.extreme {
+  background: var(--extreme);
+  border-color: var(--extreme);
+}
+
+/* Combinations */
+.combo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.preset-label {
+  margin-top: 12px;
+  min-height: 1.5em;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.settings-text {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--page);
+  color: var(--ink);
+  font: 12px ui-monospace, monospace;
+  resize: vertical;
+}
+
+/* ---- Buttons row ---- */
+.control-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.control-button {
+  background: var(--ink);
+  color: var(--button-ink);
+  border: 2px solid var(--ink);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.control-button.pause-button {
+  font-size: 12px;
+}
+.status {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+.control-block .control-row {
+  margin-bottom: 14px;
+}
+.descriptions {
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Visible keyboard focus on every control */
+.control-button:focus-visible,
+.small-button:focus-visible,
+.hex-input:focus-visible,
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The report: a full-width bar across the top of the page */
+.report-bar {
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--block);
+}
+.report-heading {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.report-link {
+  display: inline-block;
+  padding: 9px 16px;
+  border-radius: 6px;
+  background: var(--link);
+  color: var(--button-ink);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.report-bar:hover { border-color: var(--link); }
+.report-bar:hover .report-link { filter: brightness(1.1); }
+.report-bar:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+
+/* Meta controls: smaller buttons so all five fit on one row */
+.meta-buttons {
+  gap: 6px;
+}
+.meta-buttons .control-button {
+  padding: 4px 8px;
+}

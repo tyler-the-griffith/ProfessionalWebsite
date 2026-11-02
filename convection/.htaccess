@@ -1,0 +1,4 @@
+DirectoryIndex index.html
+<IfModule mod_headers.c>
+  Header set Cache-Control "no-cache"
+</IfModule>
